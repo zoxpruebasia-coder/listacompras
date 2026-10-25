@@ -91,8 +91,11 @@
   .line-sub{display:block;font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
   .line-total{font-size:14.5px;font-weight:650;font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
   .line-total.dim{color:#a9b5ad;font-weight:500}
+  .line-edit{width:34px;height:34px;border:0;background:none;color:var(--green);font-size:15px;border-radius:9px;cursor:pointer}
+  .line-edit:active{background:var(--green-soft)}
   .line-del{width:34px;height:34px;border:0;background:none;color:#9aa79f;font-size:20px;border-radius:9px;cursor:pointer}
   .line-del:active{background:var(--red-soft);color:var(--red)}
+  li.line.flash{background:#fff8e6;transition:background .4s}
 
   .empty{
     text-align:center;color:var(--muted);font-size:14px;line-height:1.5;
@@ -300,19 +303,6 @@
     <h3 style="margin-top:18px">Precios guardados</h3>
     <ul class="price-list" id="pPrices"></ul>
 
-    <div id="pLineBox" class="line-box hidden">
-      <h3>En esta compra</h3>
-      <div class="row">
-        <label class="field"><span>Tienda de esta compra</span><select id="pLineStore"></select></label>
-        <label class="field"><span>Precio €</span><input class="input" id="pLinePrice" inputmode="decimal" placeholder="0,00"></label>
-      </div>
-      <div class="row">
-        <label class="field"><span>Cantidad</span><input class="input" id="pLineQty" placeholder="1"></label>
-        <button type="button" id="pLineSave" class="primary" style="align-self:flex-end;height:46px;padding:0 18px">Guardar</button>
-      </div>
-      <button type="button" id="pLineRemove" class="danger block" style="margin-top:6px">Quitar de la lista</button>
-    </div>
-
     <button type="button" id="pAdd" class="secondary block" style="margin-top:12px">Añadir a la lista</button>
 
     <details class="prod-data">
@@ -403,7 +393,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v7";
+  var APP_VERSION = "v8";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -837,7 +827,7 @@
     ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
-     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","pLineBox","pLineStore","pLinePrice","pLineQty","pLineSave","pLineRemove","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
+     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
      "importFile","btnReset","btnForce","storeList","newStore","addStore","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -1075,6 +1065,13 @@
       tot.className = "line-total" + (item.price > 0 ? "" : " dim");
       tot.textContent = item.price > 0 ? money.format(item.price * item.qty) : "—";
 
+      var edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "line-edit";
+      edit.dataset.act = "editline";
+      edit.setAttribute("aria-label", "Editar la compra de " + item.name);
+      edit.textContent = "✎";
+
       var del = document.createElement("button");
       del.type = "button";
       del.className = "line-del";
@@ -1084,6 +1081,7 @@
 
       li.appendChild(main);
       li.appendChild(tot);
+      li.appendChild(edit);
       li.appendChild(del);
       return li;
     }
@@ -1199,6 +1197,22 @@
       setTimeout(function () { el.fPrice.focus(); }, 50);
     }
 
+    function revealLine(id) {
+      var li = document.querySelector('[data-id="' + id + '"]');
+      if (!li) return;
+      li.scrollIntoView({ block: "center", behavior: "smooth" });
+      li.classList.add("flash");
+      setTimeout(function () { li.classList.remove("flash"); }, 1600);
+    }
+
+    function editLine(itemId) {
+      var item = null;
+      state.current.items.forEach(function (i) { if (i.id === itemId) item = i; });
+      if (!item) return;
+      var p = item.productId ? product(item.productId) : null;
+      showLineForm(p, item.name, item);
+    }
+
     function openEdit(itemId) {
       var item = null;
       state.current.items.forEach(function (i) { if (i.id === itemId) item = i; });
@@ -1226,7 +1240,7 @@
       var p = addMode ? addMode.product : null;
       if (!p) return;
 
-      addLine({
+      var added = addLine({
         productId: p.id,
         name: p.name,
         unit: p.unit,
@@ -1236,6 +1250,15 @@
         storeId: el.fStore.value
       });
       el.dlgAdd.close();
+
+      if (filter !== "all" && filter !== added.storeId) filter = "all";
+      if (query && norm(added.name).indexOf(norm(query)) === -1) {
+        query = "";
+        el.listSearch.value = "";
+        el.listSearchClear.classList.add("hidden");
+      }
+      render();
+      revealLine(added.id);
       toast(p.name + " añadido");
     }
 
@@ -1253,21 +1276,9 @@
       el.pPackHint.textContent = "Si el envase trae 1,5 L o 500 g, ponlo aquí para calcular el precio por unidad. Déjalo vacío si se vende suelto.";
       resetPriceForm();
       renderPrices();
-      renderLineBox();
-      if (!el.dlgProduct.open) el.dlgProduct.showModal();
-    }
-
-    function renderLineBox() {
-      var line = null;
-      state.current.items.forEach(function (i) { if (i.id === lineIdOpen) line = i; });
-      var inList = !!line;
-      el.pLineBox.classList.toggle("hidden", !inList);
+      var inList = !!lineIdOpen || state.current.items.some(function (i) { return i.productId === p.id; });
       el.pAdd.classList.toggle("hidden", inList);
-      if (!inList) return;
-
-      el.pLineStore.innerHTML = storeOptions(line.storeId, true);
-      el.pLinePrice.value = line.price > 0 ? line.price.toFixed(2).replace(".", ",") : "";
-      el.pLineQty.value = line.qtyText || qtyFmt.format(line.qty);
+      if (!el.dlgProduct.open) el.dlgProduct.showModal();
     }
 
     function availableStores(pid) {
@@ -1782,6 +1793,12 @@
     });
 
     el.sections.addEventListener("click", function (e) {
+      var ed = e.target.closest("[data-act='editline']");
+      if (ed) {
+        var ln = ed.closest(".line");
+        if (ln) editLine(ln.dataset.id);
+        return;
+      }
       var del = e.target.closest("[data-act='del']");
       if (del) {
         var li = del.closest(".line");
@@ -1819,6 +1836,16 @@
         state.prices = state.prices.filter(function (o) { return o.id !== editingObsId; });
       }
       upsertPrice(productIdOpen, storeId, price, pack > 0 ? pack : 1, el.npPromo.checked);
+
+      if (lineIdOpen) {
+        var line = null;
+        state.current.items.forEach(function (i) { if (i.id === lineIdOpen) line = i; });
+        if (line && !line.storeId && !(line.price > 0)) {
+          line.storeId = storeId;
+          line.price = round2(price);
+          revealLine(line.id);
+        }
+      }
       save();
       resetPriceForm();
       renderPrices();
@@ -1830,28 +1857,6 @@
 
     el.pSave.addEventListener("click", saveProduct);
     el.pDelete.addEventListener("click", deleteProduct);
-    el.pLineSave.addEventListener("click", function () {
-      if (!lineIdOpen) return;
-      var price = num(el.pLinePrice.value);
-      var qtyText = el.pLineQty.value.trim().slice(0, 40);
-      var qty = num(qtyText);
-      if (!(qty > 0)) qty = 1;
-      updateLine(lineIdOpen, {
-        storeId: el.pLineStore.value,
-        price: isFinite(price) ? price : 0,
-        qty: qty,
-        qtyText: qtyText
-      });
-      toast("Compra actualizada");
-    });
-
-    el.pLineRemove.addEventListener("click", function () {
-      if (!lineIdOpen) return;
-      removeLine(lineIdOpen);
-      el.dlgProduct.close();
-      toast("Quitado de la lista");
-    });
-
     el.pAdd.addEventListener("click", function () {
       var p = product(productIdOpen);
       el.dlgProduct.close();
