@@ -185,6 +185,15 @@
   .store-input{flex:1;height:38px;padding:0 10px;font-size:15px}
   .best{font-size:10px;background:var(--green-soft);color:var(--green);border-radius:5px;padding:2px 5px;font-weight:700;margin-left:6px;vertical-align:1px}
 
+  .chart-box{margin-bottom:16px}
+  .chart-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;font-weight:650}
+  .chart-head b{font-variant-numeric:tabular-nums}
+  .chart-sub{font-size:12px;color:var(--muted);margin:2px 0 10px}
+  .chart{width:100%;height:auto;display:block}
+  .chart .axis{stroke:var(--line);stroke-width:1}
+  .chart .bar{fill:var(--green)}
+  .chart .bar-val{font-size:9px;fill:var(--ink);font-weight:600}
+  .chart .bar-date{font-size:9px;fill:var(--muted)}
   .month{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between}
   details.purchase{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff}
   details.purchase summary{padding:11px 12px;cursor:pointer;font-size:13.5px;display:flex;justify-content:space-between;gap:8px;list-style:none}
@@ -380,6 +389,7 @@
       <h2>Historial</h2>
       <button class="x" type="button" data-close="dlgHistory" aria-label="Cerrar">×</button>
     </div>
+    <div id="monthChart" class="chart-box"></div>
     <div id="historyList"></div>
   </div>
 </dialog>
@@ -428,7 +438,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v15";
+  var APP_VERSION = "v16";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -890,7 +900,7 @@
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
      "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","pLineBox","pLineToggle","pLineSummary","pLineChev","pLineFields","pLineStore","pLinePrice","pLineQty","pLineSave","pLineRemove","btnClose","closeBarTotal","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
-     "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
+     "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","monthChart","historyList","dlgSettings","btnExport",
      "importFile","btnReset","btnForce","storeList","newStore","addStore","exportStatus","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
@@ -1718,7 +1728,103 @@
 
     /* --- historial --- */
 
+    function renderMonthChart() {
+      var box = el.monthChart;
+      if (!box) return;
+      box.textContent = "";
+
+      var monthKey = todayISO().slice(0, 7);
+      var list = state.purchases
+        .filter(function (p) { return p.date.slice(0, 7) === monthKey; })
+        .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+
+      var d0 = new Date(monthKey + "-01T12:00:00");
+      var total = list.reduce(function (s, p) { return s + p.total; }, 0);
+
+      var head = document.createElement("div");
+      head.className = "chart-head";
+      var t = document.createElement("span");
+      var monthLabel = monthFmt.format(d0);
+      t.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+      var v = document.createElement("b");
+      v.textContent = money.format(total);
+      head.appendChild(t);
+      head.appendChild(v);
+      box.appendChild(head);
+
+      var sub = document.createElement("div");
+      sub.className = "chart-sub";
+      sub.textContent = list.length
+        ? (list.length === 1 ? "1 compra este mes" : list.length + " compras este mes")
+        : "Sin compras este mes";
+      box.appendChild(sub);
+
+      if (!list.length) return;
+
+      var W = 340, H = 190, padL = 10, padR = 10, padT = 26, padB = 36;
+      var chartH = H - padT - padB;
+      var n = list.length;
+      var gap = n > 8 ? 4 : 8;
+      var usable = W - padL - padR;
+      var barW = Math.min(40, (usable - gap * (n - 1)) / n);
+      var max = Math.max.apply(null, list.map(function (p) { return p.total; })) || 1;
+
+      var NS = "http://www.w3.org/2000/svg";
+      var svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+      svg.setAttribute("class", "chart");
+      svg.setAttribute("role", "img");
+      svg.setAttribute("aria-label", "Compras del mes");
+
+      var base = document.createElementNS(NS, "line");
+      base.setAttribute("x1", padL);
+      base.setAttribute("x2", W - padR);
+      base.setAttribute("y1", padT + chartH);
+      base.setAttribute("y2", padT + chartH);
+      base.setAttribute("class", "axis");
+      svg.appendChild(base);
+
+      var startX = padL + (usable - (barW * n + gap * (n - 1))) / 2;
+
+      list.forEach(function (p, i) {
+        var h = Math.max(3, (p.total / max) * chartH);
+        var x = startX + i * (barW + gap);
+        var y = padT + chartH - h;
+
+        var rect = document.createElementNS(NS, "rect");
+        rect.setAttribute("x", x.toFixed(1));
+        rect.setAttribute("y", y.toFixed(1));
+        rect.setAttribute("width", barW.toFixed(1));
+        rect.setAttribute("height", h.toFixed(1));
+        rect.setAttribute("rx", Math.min(4, barW / 2).toFixed(1));
+        rect.setAttribute("class", "bar");
+        svg.appendChild(rect);
+
+        if (n <= 12) {
+          var val = document.createElementNS(NS, "text");
+          val.setAttribute("x", (x + barW / 2).toFixed(1));
+          val.setAttribute("y", (y - 6).toFixed(1));
+          val.setAttribute("text-anchor", "middle");
+          val.setAttribute("class", "bar-val");
+          val.textContent = money.format(p.total).replace(" €", "");
+          svg.appendChild(val);
+        }
+
+        var d = new Date(p.date + "T12:00:00");
+        var lab = document.createElementNS(NS, "text");
+        lab.setAttribute("x", (x + barW / 2).toFixed(1));
+        lab.setAttribute("y", (padT + chartH + 16).toFixed(1));
+        lab.setAttribute("text-anchor", "middle");
+        lab.setAttribute("class", "bar-date");
+        lab.textContent = d.getDate() + "/" + (d.getMonth() + 1);
+        svg.appendChild(lab);
+      });
+
+      box.appendChild(svg);
+    }
+
     function renderHistory() {
+      renderMonthChart();
       el.historyList.textContent = "";
       if (!state.purchases.length) {
         var d = document.createElement("p");
