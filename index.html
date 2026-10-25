@@ -49,6 +49,7 @@
   .chip b{font-weight:600;color:var(--ink)}
   .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
   .chip.on b{color:#fff}
+  .chip.zero{opacity:.55}
   .searchwrap{position:relative;margin:0 0 10px}
   .input.search{height:42px;padding:0 42px 0 12px;border-radius:11px;font-size:15px;background:#f7f9f6}
   .search-clear{
@@ -874,7 +875,7 @@
       chips.forEach(function (c) {
         var b = document.createElement("button");
         b.type = "button";
-        b.className = "chip" + (filter === c.id ? " on" : "") + (c.n === 0 && c.id !== "all" ? " empty" : "");
+        b.className = "chip" + (filter === c.id ? " on" : "") + (c.n === 0 && c.id !== "all" ? " zero" : "");
         var label = document.createElement("span");
         label.textContent = c.name;
         var badge = document.createElement("b");
