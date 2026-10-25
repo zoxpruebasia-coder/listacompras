@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Carrito de la compra">
+  <rect width="512" height="512" rx="112" fill="#0f7b46"/>
+  <path d="M168 214a88 88 0 0 1 176 0" fill="none" stroke="#ffffff" stroke-width="26" stroke-linecap="round"/>
+  <path d="M136 210h240l-19 178a26 26 0 0 1-26 23H181a26 26 0 0 1-26-23z" fill="#ffffff"/>
+  <text x="256" y="332" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',sans-serif" font-size="124" font-weight="700" fill="#0f7b46">€</text>
+</svg>

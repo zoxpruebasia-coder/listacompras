@@ -1,0 +1,20 @@
+{
+  "name": "Carrito · lista de la compra",
+  "short_name": "Carrito",
+  "description": "Lista de la compra agrupada por tienda, con precios, total e historial.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f5f2",
+  "theme_color": "#0f7b46",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

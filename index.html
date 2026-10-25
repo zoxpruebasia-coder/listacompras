@@ -1,0 +1,1564 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0f7b46">
+<title>Carrito · lista de la compra</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  :root{
+    --bg:#f3f5f2; --card:#ffffff; --ink:#14201a; --muted:#68786e; --line:#e2e7e1;
+    --green:#0f7b46; --green-soft:#e6f2eb; --red:#b3261e; --red-soft:#fbeae9;
+    --radius:14px; --shadow:0 1px 2px rgba(20,32,26,.06), 0 8px 24px rgba(20,32,26,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink); font-size:16px;
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",sans-serif;
+    -webkit-tap-highlight-color:transparent; -webkit-text-size-adjust:100%;
+  }
+  button{font:inherit;color:inherit}
+  .wrap{max-width:560px;margin:0 auto;padding:0 14px}
+  .hidden{display:none!important}
+
+  /* cabecera */
+  header{
+    position:sticky; top:0; z-index:20; background:rgba(255,255,255,.96);
+    backdrop-filter:blur(10px); border-bottom:1px solid var(--line);
+    padding-top:calc(10px + env(safe-area-inset-top));
+  }
+  .head-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .total{font-size:40px;line-height:1.05;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  .sub{font-size:12.5px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+  .head-right{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+  .head-actions{display:flex;gap:2px}
+  .ghost{background:none;border:0;color:var(--green);font-size:13px;font-weight:600;padding:7px 9px;border-radius:9px;cursor:pointer}
+  .ghost:active{background:var(--green-soft)}
+
+  .chips{display:flex;align-items:center;gap:7px;overflow-x:auto;overflow-y:hidden;padding:10px 0;height:56px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:#fff;border-radius:99px;
+    padding:0 12px;height:34px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;
+    display:inline-flex;align-items:center;gap:6px;line-height:1;
+  }
+  .chip b{font-weight:600;color:var(--ink)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .chip.on b{color:#fff}
+
+  /* lista */
+  main{padding:14px 14px 140px;max-width:560px;margin:0 auto}
+  .hintcard{
+    background:#fff8e6;border:1px solid #f0e2b6;border-radius:12px;padding:12px 40px 12px 14px;
+    font-size:13.5px;line-height:1.45;color:#5a4a1a;margin-bottom:14px;position:relative;
+  }
+  .hintcard button{position:absolute;top:6px;right:8px;background:none;border:0;font-size:18px;color:#a08a4a;cursor:pointer}
+
+  .store-block{margin-bottom:16px}
+  .store-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 8px}
+  .store-name{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+  .store-meta{color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;margin-left:6px;font-size:12.5px}
+  .assign{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 7px;color:var(--muted);max-width:150px}
+
+  ul.lines{list-style:none;margin:0;padding:0;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+  li.line{display:flex;align-items:center;gap:10px;padding:11px 12px;border-bottom:1px solid var(--line)}
+  li.line:last-child{border-bottom:0}
+  .line-main{flex:1;min-width:0;background:none;border:0;text-align:left;padding:0;cursor:pointer}
+  .line-name{display:block;font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .line-sub{display:block;font-size:12px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+  .line-total{font-size:14.5px;font-weight:650;font-variant-numeric:tabular-nums;min-width:62px;text-align:right}
+  .line-total.dim{color:#a9b5ad;font-weight:500}
+  .line-del{width:34px;height:34px;border:0;background:none;color:#9aa79f;font-size:20px;border-radius:9px;cursor:pointer}
+  .line-del:active{background:var(--red-soft);color:var(--red)}
+
+  .empty{
+    text-align:center;color:var(--muted);font-size:14px;line-height:1.5;
+    background:#fff;border:1px dashed var(--line);border-radius:var(--radius);padding:30px 20px;
+  }
+  .empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:6px}
+
+  /* botón flotante */
+  .fab{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom));
+    background:var(--green);color:#fff;border:0;border-radius:99px;padding:15px 26px;
+    font-size:16px;font-weight:650;box-shadow:0 8px 24px rgba(15,123,70,.35);cursor:pointer;z-index:25;
+  }
+  .fab:active{transform:translateX(-50%) translateY(1px)}
+
+  /* diálogos */
+  dialog{
+    border:0;padding:0;width:100%;max-width:560px;max-height:90vh;
+    margin:auto auto 0;border-radius:18px 18px 0 0;background:#fff;color:var(--ink);
+    box-shadow:0 -10px 40px rgba(0,0,0,.18);
+  }
+  dialog::backdrop{background:rgba(20,32,26,.42)}
+  .sheet-inner{padding:16px 16px calc(18px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  .sheet-head h2{font-size:17px;margin:0}
+  .x{background:none;border:0;font-size:24px;line-height:1;color:var(--muted);padding:4px 8px;cursor:pointer;border-radius:8px}.x:focus{outline:none}.x:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+  h3{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:18px 0 8px}
+
+  .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+  .field>span,.field>label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600}
+  .input,select{
+    width:100%;border:1px solid var(--line);background:#fbfcfa;border-radius:11px;
+    padding:12px;font:inherit;font-size:16px;color:var(--ink);
+  }
+  select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,#8a978f 50%),linear-gradient(135deg,#8a978f 50%,transparent 50%);background-position:calc(100% - 18px) 20px,calc(100% - 13px) 20px;background-size:5px 5px;background-repeat:no-repeat}
+  .input:focus,select:focus{outline:2px solid var(--green);outline-offset:-1px;background:#fff}
+  .row{display:flex;gap:10px}
+  .row>.field{flex:1;min-width:0}
+  .value{font-size:16px;font-weight:650;padding:4px 0 6px}
+
+  .results{margin-top:10px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .result{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;background:#fff;border:0;border-bottom:1px solid var(--line);padding:12px;text-align:left;cursor:pointer}
+  .result:last-child{border-bottom:0}
+  .result:active{background:var(--green-soft)}
+  .result-name{font-size:14.5px;font-weight:600}
+  .result-cat{font-size:11.5px;color:var(--muted)}
+  .result-price{font-size:12.5px;color:var(--green);font-weight:650;white-space:nowrap}
+  .create{width:100%;margin-top:10px;padding:13px;border:1px dashed var(--green);background:var(--green-soft);color:var(--green);border-radius:11px;font-weight:650;cursor:pointer}
+
+  .hint{font-size:12.5px;color:var(--muted);margin:8px 0 0;line-height:1.4}
+  .sheet-actions{display:flex;gap:10px;margin-top:18px}
+  .sheet-actions button{flex:1;padding:14px;border-radius:12px;font-weight:650;border:1px solid var(--line);background:#fff;cursor:pointer}
+  .primary{background:var(--green)!important;color:#fff!important;border-color:var(--green)!important;box-shadow:0 2px 8px rgba(15,123,70,.22)}
+  .danger{color:var(--red)!important}
+  .link{background:none;border:0;color:var(--green);font-size:13px;font-weight:600;padding:6px 0;cursor:pointer;text-align:left}
+
+  .price-list{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .price-row{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13.5px}
+  .price-row:last-child{border-bottom:0}
+  .price-store{flex:1;font-weight:600}
+  .price-val{font-variant-numeric:tabular-nums;font-weight:650}
+  .price-unit{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}
+  .price-del{background:none;border:0;color:#9aa79f;font-size:17px;cursor:pointer;padding:4px}
+  .best{font-size:10px;background:var(--green-soft);color:var(--green);border-radius:5px;padding:2px 5px;font-weight:700;margin-left:6px;vertical-align:1px}
+
+  .month{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between}
+  details.purchase{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden;background:#fff}
+  details.purchase summary{padding:11px 12px;cursor:pointer;font-size:13.5px;display:flex;justify-content:space-between;gap:8px;list-style:none}
+  details.purchase summary::-webkit-details-marker{display:none}
+  details.purchase summary b{font-variant-numeric:tabular-nums}
+  .p-lines{list-style:none;margin:0;padding:4px 12px 12px;font-size:13px}
+  .p-lines li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;color:var(--muted)}
+  .p-lines b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+  .toast{
+    position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));
+    background:#1d2a22;color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;z-index:60;
+    box-shadow:0 8px 24px rgba(0,0,0,.2);max-width:calc(100% - 28px);
+  }
+  .toast[hidden]{display:none}#closeSummary{white-space:pre-line}
+
+  .settings-row{display:flex;flex-direction:column;gap:10px}
+  .settings-row button,.settings-row label.file{
+    padding:14px;border:1px solid var(--line);border-radius:12px;background:#fff;
+    font-weight:600;font-size:15px;text-align:left;cursor:pointer;display:block;
+  }
+  .settings-row input[type=file]{display:none}
+  .about{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:16px}
+
+  @media (min-width:620px){
+    .total{font-size:46px}
+    dialog{margin:auto;border-radius:18px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="head-row">
+      <div>
+        <div class="eyebrow">Total</div>
+        <div class="total" id="total">0,00 €</div>
+        <div class="sub" id="count">0 productos</div>
+      </div>
+      <div class="head-right">
+        <div class="sub" id="lastRef">Sin compras anteriores</div>
+        <div class="head-actions">
+          <button class="ghost" id="btnHistory" type="button">Historial</button>
+          <button class="ghost" id="btnCatalog" type="button">Catálogo</button>
+          <button class="ghost" id="btnSettings" type="button" aria-label="Ajustes">⋯</button>
+        </div>
+      </div>
+    </div>
+    <div class="chips" id="storeFilters"></div>
+  </div>
+</header>
+
+<main id="sections"></main>
+<button class="fab" id="btnAdd" type="button">+ Añadir</button>
+
+<div class="toast" id="toast" hidden><span id="toastMsg"></span></div>
+
+<!-- Añadir / editar línea -->
+<dialog id="dlgAdd">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="addTitle">Añadir producto</h2>
+      <button class="x" type="button" data-close="dlgAdd" aria-label="Cerrar">×</button>
+    </div>
+
+    <div id="addSearchPanel">
+      <input class="input" id="addSearch" placeholder="Buscar en el catálogo…" autocomplete="off" enterkeyhint="search">
+      <div class="results" id="searchResults"></div>
+      <button class="create hidden" type="button" id="createBtn"></button>
+    </div>
+
+    <form id="addForm" class="hidden" autocomplete="off">
+      <div class="field"><span>Producto</span><div class="value" id="fName"></div></div>
+      <button class="link hidden" type="button" id="fSheet">Ver ficha y precios por tienda ›</button>
+      <div class="row">
+        <label class="field"><span>Tienda</span><select id="fStore"></select></label>
+        <label class="field"><span>Precio €</span><input class="input" id="fPrice" inputmode="decimal" placeholder="0,00"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span id="fQtyLabel">Cantidad</span><input class="input" id="fQty" inputmode="decimal" placeholder="1"></label>
+      </div>
+      <p class="hint" id="fHint"></p>
+      <div class="sheet-actions">
+        <button type="button" id="fDelete" class="danger hidden">Quitar de la lista</button>
+        <button type="submit" class="primary" id="fSubmit">Añadir</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<!-- Ficha de producto -->
+<dialog id="dlgProduct">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2 id="pTitle">Producto</h2>
+      <button class="x" type="button" data-close="dlgProduct" aria-label="Cerrar">×</button>
+    </div>
+    <label class="field"><span>Nombre</span><input class="input" id="pName"></label>
+    <div class="row">
+      <label class="field"><span>Se compara por</span>
+        <select id="pUnit">
+          <option value="ud">unidad</option>
+          <option value="kg">kilo</option>
+          <option value="L">litro</option>
+        </select>
+      </label>
+      <label class="field"><span>Contenido por envase</span><input class="input" id="pPack" inputmode="decimal"></label>
+    </div>
+    <p class="hint" id="pPackHint"></p>
+
+    <h3>Precios por tienda</h3>
+    <ul class="price-list" id="pPrices"></ul>
+
+    <form id="npForm" autocomplete="off">
+      <h3>Añadir precio</h3>
+      <div class="row">
+        <label class="field"><span>Tienda</span><select id="npStore"></select></label>
+        <label class="field"><span>Precio €</span><input class="input" id="npPrice" inputmode="decimal" placeholder="0,00"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>Contenido</span><input class="input" id="npPack" inputmode="decimal"></label>
+        <label class="field" style="justify-content:flex-end">
+          <span>&nbsp;</span>
+          <label style="display:flex;align-items:center;gap:8px;font-size:14px;text-transform:none;letter-spacing:0;color:var(--ink);padding:12px 0">
+            <input type="checkbox" id="npPromo" style="width:18px;height:18px"> Oferta
+          </label>
+        </label>
+      </div>
+      <button class="primary" type="submit" style="width:100%;padding:13px;border-radius:12px;border:1px solid var(--green);font-weight:650">Guardar precio</button>
+    </form>
+
+    <div class="sheet-actions">
+      <button type="button" id="pDelete" class="danger">Eliminar producto</button>
+      <button type="button" id="pSave" class="primary">Guardar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Catálogo -->
+<dialog id="dlgCatalog">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Catálogo</h2>
+      <button class="x" type="button" data-close="dlgCatalog" aria-label="Cerrar">×</button>
+    </div>
+    <input class="input" id="catSearch" placeholder="Buscar producto…" autocomplete="off">
+    <div class="results" id="catList" style="margin-top:10px"></div>
+  </div>
+</dialog>
+
+<!-- Historial -->
+<dialog id="dlgHistory">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Historial</h2>
+      <button class="x" type="button" data-close="dlgHistory" aria-label="Cerrar">×</button>
+    </div>
+    <div id="historyList"></div>
+  </div>
+</dialog>
+
+<!-- Ajustes -->
+<dialog id="dlgSettings">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <h2>Ajustes</h2>
+      <button class="x" type="button" data-close="dlgSettings" aria-label="Cerrar">×</button>
+    </div>
+    <div class="settings-row">
+      <button type="button" id="btnExport">Exportar datos (JSON)</button>
+      <label class="file">Importar datos<input type="file" id="importFile" accept="application/json,.json"></label>
+      <button type="button" id="btnReset" class="danger">Borrar todos los datos</button>
+    </div>
+    <p class="about" id="aboutStats"></p>
+    <p class="about">Los datos viven solo en este navegador. Exporta de vez en cuando: si borras los datos del sitio, se pierden.</p>
+  </div>
+</dialog>
+
+<!-- Cerrar compra -->
+<dialog id="dlgClose">
+  <div class="sheet-inner">
+    <div class="sheet-head"><h2>Cerrar compra</h2></div>
+    <p class="hint" id="closeSummary"></p>
+    <div class="sheet-actions">
+      <button type="button" data-close="dlgClose">Cancelar</button>
+      <button type="button" class="primary" id="btnCloseOk">Cerrar compra</button>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  var KEY = "carrito.v1";
+  var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
+  var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
+  var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
+  var monthFmt = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" });
+
+  var STORES = [
+    { id: "mercadona", name: "Mercadona" },
+    { id: "condis", name: "Condis" },
+    { id: "lidl", name: "Lidl" },
+    { id: "consum", name: "Consum" }
+  ];
+
+  /* ---------------- datos iniciales ---------------- */
+
+  var SEED = [
+    ["Manzana","Frutas y verduras","kg"],
+    ["Mandarinas","Frutas y verduras"],
+    ["Gengibre","Frutas y verduras"],
+    ["Guisantes congelados","Frutas y verduras"],
+    ["Plátano de freír","Frutas y verduras"],
+    ["Yuca","Frutas y verduras"],
+    ["Lima","Frutas y verduras"],
+    ["Limón","Frutas y verduras"],
+    ["Zanahoria","Frutas y verduras","kg"],
+    ["Brócoli","Frutas y verduras"],
+    ["Calabacín","Frutas y verduras"],
+    ["Puerro","Frutas y verduras"],
+    ["Espinacas","Frutas y verduras"],
+    ["Fresa","Frutas y verduras"],
+    ["Pera","Frutas y verduras"],
+    ["Repollo","Frutas y verduras"],
+    ["Ajo","Frutas y verduras"],
+    ["Plátano","Frutas y verduras"],
+    ["Cebolla","Frutas y verduras"],
+    ["Judías verdes","Frutas y verduras"],
+    ["Apio","Frutas y verduras"],
+    ["Pepino","Frutas y verduras"],
+    ["Patatas","Frutas y verduras"],
+    ["Aguacate","Frutas y verduras"],
+    ["Naranjas","Frutas y verduras"],
+    ["Lechuga","Frutas y verduras"],
+    ["Camote","Frutas y verduras"],
+
+    ["Pollo","Carnes y pescados"],
+    ["Pechuga de pollo","Carnes y pescados"],
+    ["Cerdo","Carnes y pescados"],
+    ["Carne para plancha","Carnes y pescados"],
+    ["Pescado","Carnes y pescados"],
+
+    ["Queso","Lácteos y huevos"],
+    ["Bebida de soja","Lácteos y huevos","L"],
+    ["Leche para niños","Lácteos y huevos","L"],
+    ["Leche condensada","Lácteos y huevos"],
+    ["Yogur natural","Lácteos y huevos"],
+    ["Mantequilla","Lácteos y huevos"],
+    ["Huevos","Lácteos y huevos"],
+
+    ["Pan","Panadería"],
+    ["Pan de molde","Panadería"],
+    ["Pan en barras","Panadería"],
+
+    ["Mostaza","Despensa"],
+    ["Avecrem","Despensa"],
+    ["Tomate triturado","Despensa"],
+    ["Espaguetis","Despensa"],
+    ["Arroz","Despensa"],
+    ["Macarrones","Despensa","kg"],
+    ["Fajitas","Despensa"],
+    ["Pasas moscatel","Despensa"],
+    ["Ciruela pasa","Despensa"],
+    ["Sal yodada","Despensa"],
+    ["Vinagre de manzana","Despensa","L"],
+    ["Vinagre blanco","Despensa","L"],
+    ["Orégano","Despensa"],
+    ["Pimentón molido","Despensa"],
+    ["Canela","Despensa"],
+    ["Clavo de olor","Despensa"],
+    ["Comino","Despensa"],
+    ["Pimienta","Despensa"],
+    ["Levadura","Despensa"],
+    ["Ajo en polvo","Despensa"],
+    ["Maicena","Despensa"],
+    ["Azúcar","Despensa"],
+    ["Harina","Despensa"],
+    ["Miel","Despensa"],
+    ["Vainilla","Despensa"],
+    ["Cacao puro","Despensa"],
+    ["Avena","Despensa"],
+    ["Mayonesa Ybarra","Despensa"],
+    ["Aceite de oliva para cocinar","Despensa","L"],
+    ["Aceite de oliva virgen extra","Despensa","L"],
+    ["Atún","Despensa"],
+    ["Sardinas","Despensa"],
+    ["Sardinillas en aceite de oliva","Despensa"],
+    ["Mejillones","Despensa"],
+    ["Anchoas","Despensa"],
+    ["Aceitunas","Despensa"],
+    ["Aceitunas Kalamata","Despensa"],
+    ["Palitos de cangrejo (Biel)","Despensa"],
+    ["Maíz dulce","Despensa"],
+    ["Palomitas","Despensa"],
+    ["Galletas de soda","Despensa"],
+    ["Café","Despensa"],
+    ["Chocolate en gotas","Despensa"],
+    ["Gelatina","Despensa"],
+    ["Manzanilla","Despensa"],
+
+    ["Fuet","Embutidos"],
+    ["Salchichas estilo Frankfurt","Embutidos"],
+    ["Jamón serrano","Embutidos"],
+    ["Jamón en trozos","Embutidos"],
+    ["Bacon en trozos","Embutidos"],
+    ["Chorizo","Embutidos"],
+    ["Mortadela","Embutidos"],
+
+    ["Lejía","Limpieza y hogar","L"],
+    ["Percarbonato de sodio","Limpieza y hogar"],
+    ["Bicarbonato de sodio","Limpieza y hogar"],
+    ["Vinagre de limpieza","Limpieza y hogar","L"],
+    ["Lavavajillas líquido","Limpieza y hogar"],
+    ["Detergente lavadora","Limpieza y hogar"],
+    ["Papel de cocina","Limpieza y hogar"],
+    ["Papel higiénico","Limpieza y hogar"],
+    ["Pañuelos","Limpieza y hogar"],
+    ["Bolsas zip (baño)","Limpieza y hogar"],
+    ["Bolsas de basura","Limpieza y hogar"],
+    ["Bolsas de congelación","Limpieza y hogar"],
+    ["Estropajos","Limpieza y hogar"],
+    ["Ambientador","Limpieza y hogar"],
+    ["Jabón líquido","Limpieza y hogar"],
+    ["Algodón","Limpieza y hogar"],
+    ["Agua oxigenada","Limpieza y hogar"],
+    ["Pilas","Limpieza y hogar"],
+
+    ["Cepillo de dientes","Higiene personal"],
+    ["Cepillo de dientes niños","Higiene personal"],
+    ["Crema dental adultos (Signal)","Higiene personal"],
+    ["Crema dental niños","Higiene personal"],
+    ["Champú niños","Higiene personal"],
+    ["Hilo dental","Higiene personal"],
+    ["Espuma de afeitar","Higiene personal"],
+    ["Máquina de afeitar","Higiene personal"],
+    ["Desodorante","Higiene personal"],
+
+    ["Alubias (bolsa)","Legumbres y frutos secos"],
+    ["Garbanzos","Legumbres y frutos secos"],
+    ["Pipas de calabaza","Legumbres y frutos secos"],
+    ["Pipas de girasol","Legumbres y frutos secos"],
+    ["Pistachos","Legumbres y frutos secos"],
+    ["Anacardos","Legumbres y frutos secos"]
+  ];
+
+  var SEED_QTY = { "Manzana": 4, "Pan": 2, "Bebida de soja": 2, "Arroz": 3, "Leche para niños": 3 };
+
+  /* ---------------- utilidades ---------------- */
+
+  function uid(prefix) {
+    return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  }
+
+  function num(value) {
+    if (value === null || value === undefined) return NaN;
+    var s = String(value).trim().replace(/[€\s]/g, "");
+    if (!s) return NaN;
+    if (s.indexOf(",") > -1 && s.indexOf(".") > -1) s = s.replace(/\./g, "");
+    s = s.replace(",", ".");
+    var n = parseFloat(s);
+    return isFinite(n) ? n : NaN;
+  }
+
+  function round2(n) { return Math.round(n * 100) / 100; }
+
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  function storeName(id) {
+    for (var i = 0; i < STORES.length; i++) if (STORES[i].id === id) return STORES[i].name;
+    return "Sin tienda";
+  }
+
+  function unitLabel(unit) {
+    return unit === "kg" ? "kg" : unit === "L" ? "L" : "ud";
+  }
+
+  function norm(s) {
+    return String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  }
+
+  /* ---------------- estado ---------------- */
+
+  var state = null;
+
+  function seedState() {
+    var products = SEED.map(function (row, i) {
+      return {
+        id: "p" + (i + 1),
+        name: row[0],
+        category: row[1],
+        unit: row[2] || "ud",
+        pack: 1,
+        createdAt: Date.now()
+      };
+    });
+    var items = products.map(function (p) {
+      return {
+        id: uid("i"),
+        productId: p.id,
+        name: p.name,
+        unit: p.unit,
+        qty: SEED_QTY[p.name] || 1,
+        price: 0,
+        storeId: ""
+      };
+    });
+    return {
+      version: 1,
+      products: products,
+      prices: [],
+      current: { id: uid("cur"), openedAt: Date.now(), items: items },
+      purchases: []
+    };
+  }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && parsed.version === 1 && Array.isArray(parsed.products) && parsed.current && Array.isArray(parsed.current.items)) {
+          if (!Array.isArray(parsed.prices)) parsed.prices = [];
+          if (!Array.isArray(parsed.purchases)) parsed.purchases = [];
+          return parsed;
+        }
+      }
+    } catch (e) { /* datos corruptos: empezamos de cero */ }
+    return seedState();
+  }
+
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* modo privado */ }
+  }
+
+  var ui = null;
+
+  function commit() {
+    save();
+    if (ui) ui.render();
+  }
+
+  /* ---------------- núcleo de precios ---------------- */
+
+  function product(id) {
+    for (var i = 0; i < state.products.length; i++) if (state.products[i].id === id) return state.products[i];
+    return null;
+  }
+
+  function packOf(productId) {
+    var p = product(productId);
+    return p && p.pack > 0 ? p.pack : 1;
+  }
+
+  function obsUnitPrice(obs) {
+    var pack = obs.pack > 0 ? obs.pack : packOf(obs.productId);
+    return obs.price / pack;
+  }
+
+  function latestAt(productId, storeId) {
+    var best = null;
+    for (var i = 0; i < state.prices.length; i++) {
+      var o = state.prices[i];
+      if (o.productId !== productId || o.storeId !== storeId) continue;
+      if (!best || o.date > best.date) best = o;
+    }
+    return best;
+  }
+
+  function bestPrice(productId) {
+    var latest = {};
+    for (var i = 0; i < state.prices.length; i++) {
+      var o = state.prices[i];
+      if (o.productId !== productId) continue;
+      var prev = latest[o.storeId];
+      if (!prev || o.date > prev.date) latest[o.storeId] = o;
+    }
+    var best = null;
+    Object.keys(latest).forEach(function (storeId) {
+      var o = latest[storeId];
+      var up = obsUnitPrice(o);
+      if (!best || up < best.unitPrice) best = { obs: o, storeId: storeId, unitPrice: up };
+    });
+    return best;
+  }
+
+  function upsertPrice(productId, storeId, price, pack, promo) {
+    if (!productId || !storeId || !(price > 0)) return null;
+    var date = todayISO();
+    var existing = null;
+    for (var i = 0; i < state.prices.length; i++) {
+      var o = state.prices[i];
+      if (o.productId === productId && o.storeId === storeId && o.date === date) { existing = o; break; }
+    }
+    if (existing) {
+      existing.price = round2(price);
+      existing.pack = pack > 0 ? pack : 1;
+      existing.promo = !!promo;
+      return existing;
+    }
+    var obs = {
+      id: uid("pr"),
+      productId: productId,
+      storeId: storeId,
+      price: round2(price),
+      pack: pack > 0 ? pack : 1,
+      promo: !!promo,
+      date: date
+    };
+    state.prices.push(obs);
+    return obs;
+  }
+
+  /* ---------------- núcleo de la lista ---------------- */
+
+  function totalOf(items) {
+    return items.reduce(function (sum, i) { return sum + (i.price > 0 ? i.price * i.qty : 0); }, 0);
+  }
+
+  function addLine(data) {
+    var item = {
+      id: uid("i"),
+      productId: data.productId || null,
+      name: data.name,
+      unit: data.unit || "ud",
+      qty: data.qty > 0 ? data.qty : 1,
+      price: data.price > 0 ? round2(data.price) : 0,
+      storeId: data.storeId || ""
+    };
+    state.current.items.push(item);
+    commit();
+    return item;
+  }
+
+  function updateLine(id, patch) {
+    var item = null;
+    state.current.items.forEach(function (i) { if (i.id === id) item = i; });
+    if (!item) return null;
+    if (patch.qty !== undefined) item.qty = patch.qty > 0 ? patch.qty : 1;
+    if (patch.price !== undefined) item.price = patch.price > 0 ? round2(patch.price) : 0;
+    if (patch.storeId !== undefined) item.storeId = patch.storeId;
+    commit();
+    return item;
+  }
+
+  function removeLine(id) {
+    state.current.items = state.current.items.filter(function (i) { return i.id !== id; });
+    commit();
+  }
+
+  function closePurchase() {
+    var items = state.current.items.filter(function (i) { return i.price > 0 && i.qty > 0; });
+    if (!items.length) return null;
+
+    items.forEach(function (i) {
+      if (i.productId && i.storeId) upsertPrice(i.productId, i.storeId, i.price, packOf(i.productId), false);
+    });
+
+    var stores = [];
+    items.forEach(function (i) {
+      var n = i.storeId ? storeName(i.storeId) : "Sin tienda";
+      if (stores.indexOf(n) === -1) stores.push(n);
+    });
+
+    var purchase = {
+      id: uid("c"),
+      date: todayISO(),
+      total: round2(totalOf(items)),
+      stores: stores,
+      items: items.map(function (i) {
+        return {
+          productId: i.productId,
+          name: i.name,
+          qty: i.qty,
+          price: i.price,
+          unit: i.unit,
+          storeId: i.storeId,
+          storeName: i.storeId ? storeName(i.storeId) : "Sin tienda"
+        };
+      })
+    };
+
+    state.purchases.push(purchase);
+    state.current = { id: uid("cur"), openedAt: Date.now(), items: [] };
+    commit();
+    return purchase;
+  }
+
+  function totalSpent() {
+    return state.purchases.reduce(function (s, p) { return s + p.total; }, 0);
+  }
+
+  /* ---------------- UI ---------------- */
+  if (typeof document !== "undefined") initUI();
+
+  function initUI() {
+    var el = {};
+    ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
+     "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
+     "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet",
+     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npForm","npStore","npPrice","npPack","npPromo",
+     "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
+     "importFile","btnReset","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
+    ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+    var filter = "all";
+    var addMode = null; // { product, editId }
+    var productIdOpen = null;
+    var toastTimer = null;
+
+    /* --- helpers de render --- */
+
+    function toast(msg) {
+      el.toastMsg.textContent = msg;
+      el.toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.toast.hidden = true; }, 2600);
+    }
+
+    function storeOptions(selected, includeEmpty) {
+      var html = includeEmpty ? '<option value="">Sin tienda</option>' : "";
+      STORES.forEach(function (s) {
+        html += '<option value="' + s.id + '"' + (s.id === selected ? " selected" : "") + ">" + s.name + "</option>";
+      });
+      return html;
+    }
+
+    function priceHint(p, price, pack) {
+      if (!(price > 0)) return "Sin precio todavía.";
+      var unit = unitLabel(p.unit);
+      var per = price / (pack > 0 ? pack : 1);
+      if (unit === "ud" && (pack || 1) === 1) return "";
+      return "≈ " + money.format(per) + " / " + unit;
+    }
+
+    /* --- render principal --- */
+
+    function render() {
+      var items = state.current.items;
+      var total = totalOf(items);
+      var priced = items.filter(function (i) { return i.price > 0; }).length;
+
+      el.total.textContent = money.format(total);
+      el.count.textContent = items.length + (items.length === 1 ? " producto" : " productos") +
+        (priced < items.length ? " · " + (items.length - priced) + " sin precio" : "");
+
+      if (state.purchases.length) {
+        var last = state.purchases[state.purchases.length - 1];
+        var d = new Date(last.date + "T12:00:00");
+        el.lastRef.textContent = "Última compra " + money.format(last.total) + " · " + dayFmt.format(d);
+      } else {
+        el.lastRef.textContent = "Sin compras anteriores";
+      }
+
+      renderFilters(items);
+      renderSections(items);
+    }
+
+    function renderFilters(items) {
+      var counts = {};
+      items.forEach(function (i) {
+        var k = i.storeId || "none";
+        counts[k] = (counts[k] || 0) + 1;
+      });
+
+      el.storeFilters.textContent = "";
+      var chips = [{ id: "all", name: "Todo", n: items.length }];
+      STORES.forEach(function (s) { chips.push({ id: s.id, name: s.name, n: counts[s.id] || 0 }); });
+      chips.push({ id: "none", name: "Sin tienda", n: counts.none || 0 });
+
+      chips.forEach(function (c) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "chip" + (filter === c.id ? " on" : "") + (c.n === 0 && c.id !== "all" ? " empty" : "");
+        var label = document.createElement("span");
+        label.textContent = c.name;
+        var badge = document.createElement("b");
+        badge.textContent = c.n;
+        b.appendChild(label);
+        b.appendChild(badge);
+        b.addEventListener("click", function () { filter = c.id; render(); });
+        el.storeFilters.appendChild(b);
+      });
+    }
+
+    function renderSections(items) {
+      el.sections.textContent = "";
+
+      if (!items.length) {
+        var empty = document.createElement("div");
+        empty.className = "empty";
+        empty.innerHTML = "<strong>La lista está vacía</strong>Añade el primer producto y verás el total.";
+        el.sections.appendChild(empty);
+        return;
+      }
+
+      if (filter === "all" && items.every(function (i) { return !i.storeId; }) && !state.purchases.length) {
+        el.sections.appendChild(hintCard());
+      }
+
+      var groups = [];
+      STORES.forEach(function (s) {
+        groups.push({ id: s.id, name: s.name, items: items.filter(function (i) { return i.storeId === s.id; }) });
+      });
+      groups.push({ id: "none", name: "Sin tienda", items: items.filter(function (i) { return !i.storeId; }) });
+
+      var shown = 0;
+
+      groups.forEach(function (g) {
+        if (filter !== "all" && filter !== g.id) return;
+        if (!g.items.length) return;
+
+        shown++;
+
+        var block = document.createElement("section");
+        block.className = "store-block";
+
+        var head = document.createElement("div");
+        head.className = "store-head";
+
+        var name = document.createElement("div");
+        name.className = "store-name";
+        name.textContent = g.name;
+        var meta = document.createElement("span");
+        meta.className = "store-meta";
+        meta.textContent = g.items.length + " · " + money.format(totalOf(g.items));
+        name.appendChild(meta);
+
+        head.appendChild(name);
+
+        if (g.id === "none") {
+          var assign = document.createElement("select");
+          assign.className = "assign";
+          assign.innerHTML = '<option value="">Asignar todos a…</option>' + storeOptions("", false);
+          assign.addEventListener("change", function () {
+            if (!assign.value) return;
+            var sid = assign.value;
+            g.items.forEach(function (i) { i.storeId = sid; });
+            commit();
+            toast("Asignados a " + storeName(sid));
+          });
+          head.appendChild(assign);
+        }
+
+        block.appendChild(head);
+
+        var ul = document.createElement("ul");
+        ul.className = "lines";
+
+        g.items.forEach(function (i) {
+          ul.appendChild(lineNode(i));
+        });
+
+        block.appendChild(ul);
+        el.sections.appendChild(block);
+      });
+
+      if (!shown) {
+        var noneMsg = document.createElement("div");
+        noneMsg.className = "empty";
+        noneMsg.innerHTML = "<strong>Nada en esta tienda</strong>Cambia el filtro o añade un producto aquí.";
+        el.sections.appendChild(noneMsg);
+      }
+    }
+
+    function hintCard() {
+      var card = document.createElement("div");
+      card.className = "hintcard";
+      card.innerHTML = "<strong>Tu lista está cargada.</strong> Toca un producto para ponerle tienda y precio, o usa «Asignar todos a…» en el bloque Sin tienda.";
+      var x = document.createElement("button");
+      x.type = "button";
+      x.textContent = "×";
+      x.setAttribute("aria-label", "Cerrar aviso");
+      x.addEventListener("click", function () { card.remove(); });
+      card.appendChild(x);
+      return card;
+    }
+
+    function lineNode(item) {
+      var li = document.createElement("li");
+      li.className = "line";
+      li.dataset.id = item.id;
+
+      var main = document.createElement("button");
+      main.type = "button";
+      main.className = "line-main";
+      main.dataset.act = "edit";
+
+      var n = document.createElement("span");
+      n.className = "line-name";
+      n.textContent = item.name;
+
+      var s = document.createElement("span");
+      s.className = "line-sub";
+      if (item.price > 0) {
+        s.textContent = item.unit === "kg"
+          ? qtyFmt.format(item.qty) + " kg × " + money.format(item.price) + "/kg"
+          : qtyFmt.format(item.qty) + " × " + money.format(item.price);
+      } else {
+        s.textContent = "sin precio";
+      }
+
+      main.appendChild(n);
+      main.appendChild(s);
+
+      var tot = document.createElement("span");
+      tot.className = "line-total" + (item.price > 0 ? "" : " dim");
+      tot.textContent = item.price > 0 ? money.format(item.price * item.qty) : "—";
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "line-del";
+      del.dataset.act = "del";
+      del.setAttribute("aria-label", "Quitar " + item.name);
+      del.textContent = "×";
+
+      li.appendChild(main);
+      li.appendChild(tot);
+      li.appendChild(del);
+      return li;
+    }
+
+    /* --- añadir / editar línea --- */
+
+    function openAdd() {
+      addMode = null;
+      el.addTitle.textContent = "Añadir producto";
+      el.addSearchPanel.classList.remove("hidden");
+      el.addForm.classList.add("hidden");
+      el.addSearch.value = "";
+      el.createBtn.classList.add("hidden");
+      el.fDelete.classList.add("hidden");
+      el.fSubmit.textContent = "Añadir";
+      renderSearch("");
+      if (!el.dlgAdd.open) el.dlgAdd.showModal();
+      setTimeout(function () { el.addSearch.focus(); }, 50);
+    }
+
+    function renderSearch(q) {
+      var query = norm(q.trim());
+      el.searchResults.textContent = "";
+
+      var matches = state.products.filter(function (p) {
+        return !query || norm(p.name).indexOf(query) > -1;
+      }).slice(0, query ? 8 : 6);
+
+      matches.forEach(function (p) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "result";
+        b.dataset.pid = p.id;
+
+        var left = document.createElement("div");
+        var nm = document.createElement("div");
+        nm.className = "result-name";
+        nm.textContent = p.name;
+        var cat = document.createElement("div");
+        cat.className = "result-cat";
+        cat.textContent = p.category;
+        left.appendChild(nm);
+        left.appendChild(cat);
+
+        var right = document.createElement("div");
+        right.className = "result-price";
+        var best = bestPrice(p.id);
+        right.textContent = best ? money.format(best.obs.price) + " · " + storeName(best.storeId) : "sin precios";
+
+        b.appendChild(left);
+        b.appendChild(right);
+        el.searchResults.appendChild(b);
+      });
+
+      if (!matches.length) {
+        var none = document.createElement("div");
+        none.className = "result";
+        none.style.cursor = "default";
+        none.textContent = "Sin resultados en el catálogo.";
+        el.searchResults.appendChild(none);
+      }
+
+      var text = q.trim();
+      var exact = state.products.some(function (p) { return norm(p.name) === norm(text); });
+      if (text && !exact) {
+        el.createBtn.textContent = 'Crear «' + text + '» y añadirlo';
+        el.createBtn.classList.remove("hidden");
+        el.createBtn.dataset.name = text;
+      } else {
+        el.createBtn.classList.add("hidden");
+      }
+    }
+
+    function showLineForm(p, name, item) {
+      addMode = { product: p, editId: item ? item.id : null };
+      el.addSearchPanel.classList.add("hidden");
+      el.addForm.classList.remove("hidden");
+
+      el.fName.textContent = name;
+      el.fSheet.classList.toggle("hidden", !p);
+
+      var store = item ? item.storeId : "";
+      if (!store && p) {
+        var best = bestPrice(p.id);
+        if (best) store = best.storeId;
+      }
+      el.fStore.innerHTML = storeOptions(store, true);
+      el.fStore.value = store;
+
+      var price = item ? (item.price > 0 ? item.price : "") : "";
+      if (!item && p && store) {
+        var last = latestAt(p.id, store);
+        if (last) price = last.price;
+      }
+      el.fPrice.value = price === "" ? "" : String(price).replace(".", ",");
+      el.fQty.value = item ? qtyFmt.format(item.qty) : "1";
+      el.fQtyLabel.textContent = p && p.unit === "kg" ? "Kilos" : "Cantidad";
+
+      var pack = p ? p.pack : 1;
+      el.fHint.textContent = p ? priceHint(p, num(el.fPrice.value), pack) : "";
+
+      el.fDelete.classList.toggle("hidden", !item);
+      el.fSubmit.textContent = item ? "Guardar" : "Añadir";
+      el.addTitle.textContent = item ? "Editar producto" : "Añadir producto";
+
+      if (!el.dlgAdd.open) el.dlgAdd.showModal();
+      setTimeout(function () { el.fPrice.focus(); }, 50);
+    }
+
+    function openEdit(itemId) {
+      var item = null;
+      state.current.items.forEach(function (i) { if (i.id === itemId) item = i; });
+      if (!item) return;
+      var p = item.productId ? product(item.productId) : null;
+      showLineForm(p, item.name, item);
+    }
+
+    function submitLine(e) {
+      e.preventDefault();
+      var price = num(el.fPrice.value);
+      var qty = num(el.fQty.value);
+      if (!(qty > 0)) qty = 1;
+
+      if (addMode && addMode.editId) {
+        var patch = { qty: qty, price: isFinite(price) ? price : 0, storeId: el.fStore.value };
+        updateLine(addMode.editId, patch);
+        el.dlgAdd.close();
+        toast("Actualizado");
+        return;
+      }
+
+      var p = addMode ? addMode.product : null;
+      if (!p) return;
+
+      addLine({
+        productId: p.id,
+        name: p.name,
+        unit: p.unit,
+        qty: qty,
+        price: isFinite(price) ? price : 0,
+        storeId: el.fStore.value
+      });
+      el.dlgAdd.close();
+      toast(p.name + " añadido");
+    }
+
+    /* --- ficha de producto --- */
+
+    function openProduct(id) {
+      var p = product(id);
+      if (!p) return;
+      productIdOpen = id;
+      el.pTitle.textContent = p.name;
+      el.pName.value = p.name;
+      el.pUnit.value = p.unit;
+      el.pPack.value = p.pack && p.pack !== 1 ? String(p.pack).replace(".", ",") : "";
+      el.pPackHint.textContent = "Si el envase trae 1,5 L o 500 g, ponlo aquí para calcular el precio por unidad. Déjalo vacío si se vende suelto.";
+      el.npStore.innerHTML = storeOptions("", false);
+      el.npPrice.value = "";
+      el.npPack.value = el.pPack.value;
+      el.npPromo.checked = false;
+      renderPrices();
+      if (!el.dlgProduct.open) el.dlgProduct.showModal();
+    }
+
+    function renderPrices() {
+      var p = product(productIdOpen);
+      if (!p) return;
+      el.pPrices.textContent = "";
+
+      var rows = [];
+      STORES.forEach(function (s) {
+        var o = latestAt(p.id, s.id);
+        if (o) rows.push({ store: s, obs: o });
+      });
+
+      if (!rows.length) {
+        var li = document.createElement("li");
+        li.className = "price-row";
+        li.style.color = "var(--muted)";
+        li.textContent = "Todavía no hay precios. Añade el primero abajo.";
+        el.pPrices.appendChild(li);
+        return;
+      }
+
+      var best = bestPrice(p.id);
+
+      rows.sort(function (a, b) { return obsUnitPrice(a.obs) - obsUnitPrice(b.obs); });
+
+      rows.forEach(function (r) {
+        var li = document.createElement("li");
+        li.className = "price-row";
+
+        var st = document.createElement("span");
+        st.className = "price-store";
+        st.textContent = r.store.name;
+        if (best && best.obs.id === r.obs.id) {
+          var badge = document.createElement("span");
+          badge.className = "best";
+          badge.textContent = "MEJOR";
+          st.appendChild(badge);
+        }
+
+        var val = document.createElement("span");
+        val.className = "price-val";
+        val.textContent = money.format(r.obs.price);
+
+        var unit = document.createElement("span");
+        unit.className = "price-unit";
+        unit.textContent = r.obs.pack > 1 ? money.format(obsUnitPrice(r.obs)) + "/" + unitLabel(p.unit) : "";
+
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "price-del";
+        del.dataset.obs = r.obs.id;
+        del.textContent = "×";
+        del.setAttribute("aria-label", "Eliminar precio de " + r.store.name);
+
+        li.appendChild(st);
+        li.appendChild(val);
+        li.appendChild(unit);
+        li.appendChild(del);
+        el.pPrices.appendChild(li);
+      });
+    }
+
+    function saveProduct() {
+      var p = product(productIdOpen);
+      if (!p) return;
+      var name = el.pName.value.trim() || p.name;
+      var pack = num(el.pPack.value);
+      p.name = name;
+      p.unit = el.pUnit.value;
+      p.pack = pack > 0 ? pack : 1;
+
+      state.current.items.forEach(function (i) {
+        if (i.productId === p.id) { i.name = p.name; i.unit = p.unit; }
+      });
+
+      save();
+      render();
+      el.dlgProduct.close();
+      toast("Producto guardado");
+    }
+
+    function deleteProduct() {
+      var p = product(productIdOpen);
+      if (!p) return;
+      if (!confirm("¿Eliminar «" + p.name + "» del catálogo? Sus precios guardados también se borran.")) return;
+      state.products = state.products.filter(function (x) { return x.id !== p.id; });
+      state.prices = state.prices.filter(function (o) { return o.productId !== p.id; });
+      state.current.items.forEach(function (i) { if (i.productId === p.id) i.productId = null; });
+      save();
+      render();
+      el.dlgProduct.close();
+      toast("Producto eliminado");
+    }
+
+    /* --- catálogo --- */
+
+    function renderCatalog(q) {
+      var query = norm((q || "").trim());
+      el.catList.textContent = "";
+      var list = state.products.filter(function (p) { return !query || norm(p.name).indexOf(query) > -1; }).slice(0, 60);
+
+      list.forEach(function (p) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.className = "result";
+        b.dataset.pid = p.id;
+
+        var left = document.createElement("div");
+        var nm = document.createElement("div");
+        nm.className = "result-name";
+        nm.textContent = p.name;
+        var cat = document.createElement("div");
+        cat.className = "result-cat";
+        cat.textContent = p.category;
+        left.appendChild(nm);
+        left.appendChild(cat);
+
+        var right = document.createElement("div");
+        right.className = "result-price";
+        var best = bestPrice(p.id);
+        right.textContent = best ? money.format(best.obs.price) + " · " + storeName(best.storeId) : "sin precios";
+
+        b.appendChild(left);
+        b.appendChild(right);
+        el.catList.appendChild(b);
+      });
+
+      if (!list.length) {
+        var d = document.createElement("div");
+        d.className = "result";
+        d.style.cursor = "default";
+        d.textContent = "Nada por aquí.";
+        el.catList.appendChild(d);
+      }
+    }
+
+    /* --- historial --- */
+
+    function renderHistory() {
+      el.historyList.textContent = "";
+      if (!state.purchases.length) {
+        var d = document.createElement("p");
+        d.className = "hint";
+        d.textContent = "Aún no has cerrado ninguna compra. Cuando la cierres, aparecerá aquí con su total.";
+        el.historyList.appendChild(d);
+        return;
+      }
+
+      var months = {};
+      var order = [];
+      state.purchases.slice().reverse().forEach(function (p) {
+        var key = p.date.slice(0, 7);
+        if (!months[key]) { months[key] = { total: 0, list: [] }; order.push(key); }
+        months[key].total += p.total;
+        months[key].list.push(p);
+      });
+
+      order.forEach(function (key) {
+        var m = months[key];
+        var head = document.createElement("div");
+        head.className = "month";
+        var d = new Date(key + "-01T12:00:00");
+        head.innerHTML = "<span>" + monthFmt.format(d) + "</span><span>" + money.format(m.total) + "</span>";
+        el.historyList.appendChild(head);
+
+        m.list.forEach(function (p) {
+          var det = document.createElement("details");
+          det.className = "purchase";
+          var sum = document.createElement("summary");
+          var d2 = new Date(p.date + "T12:00:00");
+          var left = document.createElement("span");
+          left.textContent = dayFmt.format(d2) + " · " + p.stores.join(" · ");
+          var right = document.createElement("b");
+          right.textContent = money.format(p.total);
+          sum.appendChild(left);
+          sum.appendChild(right);
+          det.appendChild(sum);
+
+          var ul = document.createElement("ul");
+          ul.className = "p-lines";
+          p.items.forEach(function (i) {
+            var li = document.createElement("li");
+            var n = document.createElement("span");
+            n.textContent = qtyFmt.format(i.qty) + " × " + i.name;
+            var v = document.createElement("b");
+            v.textContent = money.format(i.qty * i.price);
+            li.appendChild(n);
+            li.appendChild(v);
+            ul.appendChild(li);
+          });
+          det.appendChild(ul);
+          el.historyList.appendChild(det);
+        });
+      });
+    }
+
+    /* --- cerrar compra --- */
+
+    function openClose() {
+      var items = state.current.items.filter(function (i) { return i.price > 0; });
+      if (!items.length) { toast("No hay ningún precio que cerrar"); return; }
+
+      var noStore = items.filter(function (i) { return !i.storeId; }).length;
+      var stores = [];
+      items.forEach(function (i) {
+        var n = i.storeId ? storeName(i.storeId) : "Sin tienda";
+        if (stores.indexOf(n) === -1) stores.push(n);
+      });
+
+      var unpriced = state.current.items.length - items.length;
+
+      var txt = items.length + " productos · " + money.format(totalOf(items)) + "\n" + stores.join(" · ");
+      if (noStore) txt += "\n\n" + noStore + " producto(s) sin tienda: se guardarán en el historial, pero no generarán precios.";
+      if (unpriced) txt += "\n\n" + unpriced + " producto(s) sin precio no se guardarán.";
+      txt += "\n\nAl cerrar, la lista se vacía y los precios pasan al catálogo.";
+      el.closeSummary.textContent = txt;
+      el.dlgClose.showModal();
+    }
+
+    /* --- ajustes --- */
+
+    function exportData() {
+      var blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url;
+      a.download = "carrito-" + todayISO() + ".json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      toast("Datos exportados");
+    }
+
+    function importData(file) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        try {
+          var obj = JSON.parse(String(reader.result));
+          if (!obj || !Array.isArray(obj.products) || !obj.current || !Array.isArray(obj.current.items)) {
+            throw new Error("formato");
+          }
+          if (!Array.isArray(obj.prices)) obj.prices = [];
+          if (!Array.isArray(obj.purchases)) obj.purchases = [];
+          state = obj;
+          save();
+          filter = "all";
+          render();
+          el.dlgSettings.close();
+          toast("Datos importados");
+        } catch (e) {
+          toast("El archivo no es válido");
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetAll() {
+      if (!confirm("¿Borrar todos los datos? Se pierden la lista, el catálogo y el historial.")) return;
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      state = seedState();
+      save();
+      filter = "all";
+      render();
+      el.dlgSettings.close();
+      toast("Datos borrados");
+    }
+
+    /* --- eventos --- */
+
+    el.btnAdd.addEventListener("click", openAdd);
+    el.btnHistory.addEventListener("click", function () { renderHistory(); el.dlgHistory.showModal(); });
+    el.btnCatalog.addEventListener("click", function () { el.catSearch.value = ""; renderCatalog(""); el.dlgCatalog.showModal(); });
+    el.btnSettings.addEventListener("click", function () {
+      el.aboutStats.textContent = state.products.length + " productos · " + state.prices.length + " precios guardados · " +
+        state.purchases.length + " compras · " + money.format(totalSpent()) + " en total";
+      el.dlgSettings.showModal();
+    });
+
+    document.querySelectorAll("[data-close]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var d = document.getElementById(b.dataset.close);
+        if (d) d.close();
+      });
+    });
+
+    el.addSearch.addEventListener("input", function () { renderSearch(el.addSearch.value); });
+
+    el.searchResults.addEventListener("click", function (e) {
+      var b = e.target.closest(".result[data-pid]");
+      if (!b) return;
+      var p = product(b.dataset.pid);
+      if (p) showLineForm(p, p.name, null);
+    });
+
+    el.createBtn.addEventListener("click", function () {
+      var name = (el.createBtn.dataset.name || "").trim();
+      if (!name) return;
+      var p = {
+        id: uid("p"),
+        name: name,
+        category: "Sin categoría",
+        unit: "ud",
+        pack: 1,
+        createdAt: Date.now()
+      };
+      state.products.push(p);
+      save();
+      showLineForm(p, p.name, null);
+    });
+
+    el.fStore.addEventListener("change", function () {
+      if (!addMode || !addMode.product) return;
+      var o = latestAt(addMode.product.id, el.fStore.value);
+      if (o) {
+        el.fPrice.value = String(o.price).replace(".", ",");
+        el.fHint.textContent = priceHint(addMode.product, o.price, addMode.product.pack);
+      } else {
+        el.fHint.textContent = priceHint(addMode.product, 0, addMode.product.pack);
+      }
+    });
+
+    el.fPrice.addEventListener("input", function () {
+      if (!addMode || !addMode.product) return;
+      el.fHint.textContent = priceHint(addMode.product, num(el.fPrice.value), addMode.product.pack);
+    });
+
+    el.addForm.addEventListener("submit", submitLine);
+
+    el.fDelete.addEventListener("click", function () {
+      if (!addMode || !addMode.editId) return;
+      removeLine(addMode.editId);
+      el.dlgAdd.close();
+      toast("Quitado de la lista");
+    });
+
+    el.fSheet.addEventListener("click", function () {
+      if (!addMode || !addMode.product) return;
+      var id = addMode.product.id;
+      el.dlgAdd.close();
+      openProduct(id);
+    });
+
+    el.sections.addEventListener("click", function (e) {
+      var del = e.target.closest("[data-act='del']");
+      if (del) {
+        var li = del.closest(".line");
+        if (li) removeLine(li.dataset.id);
+        return;
+      }
+      var main = e.target.closest("[data-act='edit']");
+      if (main) {
+        var line = main.closest(".line");
+        if (line) openEdit(line.dataset.id);
+      }
+    });
+
+    el.pPrices.addEventListener("click", function (e) {
+      var b = e.target.closest("[data-obs]");
+      if (!b) return;
+      state.prices = state.prices.filter(function (o) { return o.id !== b.dataset.obs; });
+      save();
+      renderPrices();
+      render();
+    });
+
+    el.npForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var price = num(el.npPrice.value);
+      var pack = num(el.npPack.value);
+      if (!(price > 0)) { el.npPrice.focus(); return; }
+      upsertPrice(productIdOpen, el.npStore.value, price, pack > 0 ? pack : 1, el.npPromo.checked);
+      save();
+      el.npPrice.value = "";
+      renderPrices();
+      render();
+      toast("Precio guardado en " + storeName(el.npStore.value));
+    });
+
+    el.pSave.addEventListener("click", saveProduct);
+    el.pDelete.addEventListener("click", deleteProduct);
+
+    el.catSearch.addEventListener("input", function () { renderCatalog(el.catSearch.value); });
+    el.catList.addEventListener("click", function (e) {
+      var b = e.target.closest(".result[data-pid]");
+      if (!b) return;
+      openProduct(b.dataset.pid);
+    });
+
+    el.btnExport.addEventListener("click", exportData);
+    el.importFile.addEventListener("change", function () {
+      if (el.importFile.files && el.importFile.files[0]) importData(el.importFile.files[0]);
+      el.importFile.value = "";
+    });
+    el.btnReset.addEventListener("click", resetAll);
+
+    el.btnCloseOk.addEventListener("click", function () {
+      var p = closePurchase();
+      el.dlgClose.close();
+      if (p) { toast("Compra cerrada · " + money.format(p.total)); }
+    });
+
+    /* --- arranque --- */
+    state = load();
+    if (!state.current.items.length && !state.purchases.length) save();
+    render();
+
+    if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
+  }
+
+  /* ---------------- API de pruebas ---------------- */
+  globalThis.__carrito = {
+    get state() { return state; },
+    set state(v) { state = v; },
+    seedState: seedState,
+    load: load,
+    save: save,
+    totalOf: totalOf,
+    addLine: function (d) { if (!state) state = load(); return addLine(d); },
+    updateLine: function (id, p) { return updateLine(id, p); },
+    removeLine: function (id) { return removeLine(id); },
+    closePurchase: function () { if (!state) state = load(); return closePurchase(); },
+    upsertPrice: function (a, b, c, d, e) { if (!state) state = load(); return upsertPrice(a, b, c, d, e); },
+    bestPrice: function (id) { return bestPrice(id); },
+    latestAt: function (a, b) { return latestAt(a, b); },
+    product: function (id) { return product(id); },
+    init: function () { if (!state) state = load(); }
+  };
+})();
+</script>
+</body>
+</html>
