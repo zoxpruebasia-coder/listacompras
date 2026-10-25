@@ -169,7 +169,10 @@
   .price-unit{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}
   .price-del{background:none;border:0;color:#9aa79f;font-size:17px;cursor:pointer;padding:4px}
   .price-edit{background:none;border:0;color:var(--green);font-size:15px;cursor:pointer;padding:4px}
-  .line-box{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
+  .line-box{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+  .line-summary{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f7f9f6;border:1px solid var(--line);border-radius:11px;padding:11px 12px;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+  .line-summary .chev{color:var(--green);font-weight:650;font-size:12.5px;white-space:nowrap}
+  .line-fields{margin-top:10px}
   .np-actions{display:flex;gap:10px;margin-top:2px}
   .np-actions button{flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);background:#fff;font-weight:650;cursor:pointer}
   .store-input{flex:1;height:38px;padding:0 10px;font-size:15px}
@@ -303,6 +306,24 @@
     <h3 style="margin-top:18px">Precios guardados</h3>
     <ul class="price-list" id="pPrices"></ul>
 
+    <div id="pLineBox" class="line-box hidden">
+      <button type="button" id="pLineToggle" class="line-summary">
+        <span id="pLineSummary">En esta compra</span>
+        <span id="pLineChev" class="chev">Editar</span>
+      </button>
+      <div id="pLineFields" class="line-fields hidden">
+        <div class="row">
+          <label class="field"><span>Tienda de esta compra</span><select id="pLineStore"></select></label>
+          <label class="field"><span>Precio €</span><input class="input" id="pLinePrice" inputmode="decimal" placeholder="0,00"></label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Cantidad</span><input class="input" id="pLineQty" placeholder="1"></label>
+          <button type="button" id="pLineSave" class="primary" style="align-self:flex-end;height:46px;padding:0 18px">Guardar</button>
+        </div>
+        <button type="button" id="pLineRemove" class="danger block" style="margin-top:6px">Quitar de la lista</button>
+      </div>
+    </div>
+
     <button type="button" id="pAdd" class="secondary block" style="margin-top:12px">Añadir a la lista</button>
 
     <details class="prod-data">
@@ -393,7 +414,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v9";
+  var APP_VERSION = "v10";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -827,7 +848,7 @@
     ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
-     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
+     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","pLineBox","pLineToggle","pLineSummary","pLineChev","pLineFields","pLineStore","pLinePrice","pLineQty","pLineSave","pLineRemove","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
      "importFile","btnReset","btnForce","storeList","newStore","addStore","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -1210,7 +1231,8 @@
       state.current.items.forEach(function (i) { if (i.id === itemId) item = i; });
       if (!item) return;
       var p = item.productId ? product(item.productId) : null;
-      showLineForm(p, item.name, item);
+      if (p) { openProduct(p.id, item.id); return; }
+      showLineForm(null, item.name, item);
     }
 
     function openEdit(itemId) {
@@ -1276,8 +1298,7 @@
       el.pPackHint.textContent = "Si el envase trae 1,5 L o 500 g, ponlo aquí para calcular el precio por unidad. Déjalo vacío si se vende suelto.";
       resetPriceForm();
       renderPrices();
-      var inList = !!lineIdOpen || state.current.items.some(function (i) { return i.productId === p.id; });
-      el.pAdd.classList.toggle("hidden", inList);
+      renderLineBox();
       if (!el.dlgProduct.open) el.dlgProduct.showModal();
     }
 
@@ -1326,6 +1347,25 @@
 
       if (el.npForm.scrollIntoView) el.npForm.scrollIntoView({ block: "nearest", behavior: "smooth" });
       setTimeout(function () { el.npPrice.focus(); }, 80);
+    }
+
+    function renderLineBox() {
+      var line = null;
+      state.current.items.forEach(function (i) { if (i.id === lineIdOpen) line = i; });
+      var inList = !!line;
+      if (!el.pLineBox) return;
+      el.pLineBox.classList.toggle("hidden", !inList);
+      el.pAdd.classList.toggle("hidden", inList);
+      el.pLineFields.classList.add("hidden");
+      el.pLineChev.textContent = "Editar";
+      if (!inList) return;
+
+      el.pLineSummary.textContent = "En esta compra: " + (line.storeId ? storeName(line.storeId) : "sin tienda") +
+        " · " + (line.price > 0 ? money.format(line.price) : "sin precio") +
+        " · ×" + (line.qtyText || qtyFmt.format(line.qty));
+      el.pLineStore.innerHTML = storeOptions(line.storeId, true);
+      el.pLinePrice.value = line.price > 0 ? line.price.toFixed(2).replace(".", ",") : "";
+      el.pLineQty.value = line.qtyText || qtyFmt.format(line.qty);
     }
 
     function syncLinesFor(productId) {
@@ -1864,6 +1904,7 @@
       resetPriceForm();
       renderPrices();
       render();
+      renderLineBox();
       if (synced) {
         toast("Más barato en " + storeName(synced.best.storeId) + " · " + money.format(synced.best.obs.price) + " · lista actualizada");
         revealLine(synced.lineId);
@@ -1876,6 +1917,36 @@
 
     el.pSave.addEventListener("click", saveProduct);
     el.pDelete.addEventListener("click", deleteProduct);
+    el.pLineToggle.addEventListener("click", function () {
+      var closed = el.pLineFields.classList.contains("hidden");
+      el.pLineFields.classList.toggle("hidden", !closed);
+      el.pLineChev.textContent = closed ? "Cerrar" : "Editar";
+    });
+
+    el.pLineSave.addEventListener("click", function () {
+      if (!lineIdOpen) return;
+      var price = num(el.pLinePrice.value);
+      var qtyText = el.pLineQty.value.trim().slice(0, 40);
+      var qty = num(qtyText);
+      if (!(qty > 0)) qty = 1;
+      updateLine(lineIdOpen, {
+        storeId: el.pLineStore.value,
+        price: isFinite(price) ? price : 0,
+        qty: qty,
+        qtyText: qtyText
+      });
+      renderLineBox();
+      toast("Compra actualizada");
+    });
+
+    el.pLineRemove.addEventListener("click", function () {
+      if (!lineIdOpen) return;
+      removeLine(lineIdOpen);
+      lineIdOpen = null;
+      el.dlgProduct.close();
+      toast("Quitado de la lista");
+    });
+
     el.pAdd.addEventListener("click", function () {
       var p = product(productIdOpen);
       el.dlgProduct.close();
