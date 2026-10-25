@@ -1,0 +1,9 @@
+# Artefactos generados por TestSprite
+testsprite_tests/
+
+# Pruebas internas y capturas locales
+_dev/
+vista-previa.png
+
+# Configuracion local del editor (puede contener claves)
+.vscode/
