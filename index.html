@@ -168,6 +168,7 @@
   .price-edit{background:none;border:0;color:var(--green);font-size:15px;cursor:pointer;padding:4px}
   .np-actions{display:flex;gap:10px;margin-top:2px}
   .np-actions button{flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);background:#fff;font-weight:650;cursor:pointer}
+  .store-input{flex:1;height:38px;padding:0 10px;font-size:15px}
   .best{font-size:10px;background:var(--green-soft);color:var(--green);border-radius:5px;padding:2px 5px;font-weight:700;margin-left:6px;vertical-align:1px}
 
   .month{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between}
@@ -357,6 +358,13 @@
       <label class="file">Importar datos<input type="file" id="importFile" accept="application/json,.json"></label>
       <button type="button" id="btnReset" class="danger">Borrar todos los datos</button>
     </div>
+
+    <h3>Tiendas</h3>
+    <ul class="price-list" id="storeList"></ul>
+    <div class="row" style="margin-top:10px">
+      <input class="input" id="newStore" placeholder="Nueva tienda" maxlength="24">
+      <button type="button" class="primary" id="addStore" style="padding:0 16px">Añadir</button>
+    </div>
     <p class="about" id="aboutStats"></p>
     <p class="about">Los datos viven solo en este navegador. Exporta de vez en cuando: si borras los datos del sitio, se pierden.</p>
   </div>
@@ -384,12 +392,21 @@
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
   var monthFmt = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" });
 
-  var STORES = [
+  var DEFAULT_STORES = [
     { id: "mercadona", name: "Mercadona" },
     { id: "condis", name: "Condis" },
     { id: "lidl", name: "Lidl" },
     { id: "consum", name: "Consum" }
   ];
+
+  function defaultStores() {
+    return DEFAULT_STORES.map(function (s) { return { id: s.id, name: s.name }; });
+  }
+
+  function storeList() {
+    if (state && Array.isArray(state.stores) && state.stores.length) return state.stores;
+    return DEFAULT_STORES;
+  }
 
   /* ---------------- datos iniciales ---------------- */
 
@@ -557,7 +574,8 @@
   }
 
   function storeName(id) {
-    for (var i = 0; i < STORES.length; i++) if (STORES[i].id === id) return STORES[i].name;
+    var list = storeList();
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i].name;
     return "Sin tienda";
   }
 
@@ -597,6 +615,7 @@
     });
     return {
       version: 1,
+      stores: defaultStores(),
       products: products,
       prices: [],
       current: { id: uid("cur"), openedAt: Date.now(), items: items },
@@ -612,6 +631,7 @@
         if (parsed && parsed.version === 1 && Array.isArray(parsed.products) && parsed.current && Array.isArray(parsed.current.items)) {
           if (!Array.isArray(parsed.prices)) parsed.prices = [];
           if (!Array.isArray(parsed.purchases)) parsed.purchases = [];
+          if (!Array.isArray(parsed.stores) || !parsed.stores.length) parsed.stores = defaultStores();
           return parsed;
         }
       }
@@ -802,7 +822,7 @@
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
      "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
-     "importFile","btnReset","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
+     "importFile","btnReset","storeList","newStore","addStore","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     var filter = "all";
@@ -823,7 +843,7 @@
 
     function storeOptions(selected, includeEmpty) {
       var html = includeEmpty ? '<option value="">Sin tienda</option>' : "";
-      STORES.forEach(function (s) {
+      storeList().forEach(function (s) {
         html += '<option value="' + s.id + '"' + (s.id === selected ? " selected" : "") + ">" + s.name + "</option>";
       });
       return html;
@@ -875,7 +895,7 @@
 
       el.storeFilters.textContent = "";
       var chips = [{ id: "all", name: "Todo", n: items.length }];
-      STORES.forEach(function (s) { chips.push({ id: s.id, name: s.name, n: counts[s.id] || 0 }); });
+      storeList().forEach(function (s) { chips.push({ id: s.id, name: s.name, n: counts[s.id] || 0 }); });
       chips.push({ id: "none", name: "Sin tienda", n: counts.none || 0 });
 
       chips.forEach(function (c) {
@@ -928,7 +948,7 @@
       }
 
       var groups = [];
-      STORES.forEach(function (s) {
+      storeList().forEach(function (s) {
         groups.push({ id: s.id, name: s.name, items: items.filter(function (i) { return i.storeId === s.id; }) });
       });
       groups.push({ id: "none", name: "Sin tienda", items: items.filter(function (i) { return !i.storeId; }) });
@@ -1217,7 +1237,7 @@
     }
 
     function availableStores(pid) {
-      return STORES.filter(function (s) { return !latestAt(pid, s.id); });
+      return storeList().filter(function (s) { return !latestAt(pid, s.id); });
     }
 
     function resetPriceForm() {
@@ -1269,7 +1289,7 @@
       el.pPrices.textContent = "";
 
       var rows = [];
-      STORES.forEach(function (s) {
+      storeList().forEach(function (s) {
         var o = latestAt(p.id, s.id);
         if (o) rows.push({ store: s, obs: o });
       });
@@ -1502,6 +1522,67 @@
       el.dlgClose.showModal();
     }
 
+    /* --- tiendas --- */
+
+    function renderStoreAdmin() {
+      el.storeList.textContent = "";
+      storeList().forEach(function (s) {
+        var li = document.createElement("li");
+        li.className = "price-row";
+
+        var inp = document.createElement("input");
+        inp.className = "input store-input";
+        inp.value = s.name;
+        inp.maxLength = 24;
+        inp.dataset.store = s.id;
+        inp.setAttribute("aria-label", "Nombre de la tienda");
+
+        var del = document.createElement("button");
+        del.type = "button";
+        del.className = "price-del";
+        del.dataset.delstore = s.id;
+        del.textContent = "×";
+        del.setAttribute("aria-label", "Eliminar tienda " + s.name);
+
+        li.appendChild(inp);
+        li.appendChild(del);
+        el.storeList.appendChild(li);
+      });
+    }
+
+    function addStore() {
+      var name = el.newStore.value.trim().slice(0, 24);
+      if (!name) { el.newStore.focus(); return; }
+      var exists = storeList().some(function (s) { return norm(s.name) === norm(name); });
+      if (exists) { toast("Esa tienda ya existe"); return; }
+      state.stores.push({ id: "st" + Date.now().toString(36), name: name });
+      el.newStore.value = "";
+      save();
+      renderStoreAdmin();
+      render();
+      toast("Tienda añadida");
+    }
+
+    function renameStore(id, name) {
+      var list = storeList();
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === id) list[i].name = name;
+      }
+    }
+
+    function deleteStore(id) {
+      var name = storeName(id);
+      if (!confirm("¿Eliminar la tienda «" + name + "»? Se borrarán sus precios y los productos asignados quedarán sin tienda.")) return;
+      state.stores = storeList().filter(function (s) { return s.id !== id; });
+      state.prices = state.prices.filter(function (o) { return o.storeId !== id; });
+      state.current.items.forEach(function (i) { if (i.storeId === id) i.storeId = ""; });
+      if (filter === id) filter = "all";
+      save();
+      renderStoreAdmin();
+      render();
+      toast("Tienda eliminada");
+    }
+
     /* --- ajustes --- */
 
     function exportData() {
@@ -1559,7 +1640,34 @@
     el.btnSettings.addEventListener("click", function () {
       el.aboutStats.textContent = state.products.length + " productos · " + state.prices.length + " precios guardados · " +
         state.purchases.length + " compras · " + money.format(totalSpent()) + " en total";
+      el.newStore.value = "";
+      renderStoreAdmin();
       el.dlgSettings.showModal();
+    });
+
+    el.addStore.addEventListener("click", addStore);
+    el.newStore.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") { e.preventDefault(); addStore(); }
+    });
+
+    el.storeList.addEventListener("change", function (e) {
+      var inp = e.target.closest("[data-store]");
+      if (!inp) return;
+      var id = inp.dataset.store;
+      var name = inp.value.trim().slice(0, 24);
+      if (!name) { renderStoreAdmin(); return; }
+      var dup = storeList().some(function (s) { return s.id !== id && norm(s.name) === norm(name); });
+      if (dup) { toast("Esa tienda ya existe"); renderStoreAdmin(); return; }
+      renameStore(id, name);
+      save();
+      render();
+      toast("Tienda renombrada");
+    });
+
+    el.storeList.addEventListener("click", function (e) {
+      var del = e.target.closest("[data-delstore]");
+      if (!del) return;
+      deleteStore(del.dataset.delstore);
     });
 
     el.listSearch.addEventListener("input", function () {
@@ -1759,6 +1867,8 @@
     bestPrice: function (id) { return bestPrice(id); },
     latestAt: function (a, b) { return latestAt(a, b); },
     product: function (id) { return product(id); },
+    stores: function () { return storeList(); },
+    storeName: storeName,
     init: function () { if (!state) state = load(); }
   };
 })();
