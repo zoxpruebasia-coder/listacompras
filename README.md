@@ -16,6 +16,7 @@ Aplicación web (PWA) para construir el ticket de la compra antes de pasar por c
 - **Cerrar compra**: sella la compra con fecha, tiendas y total; traslada los precios al catálogo y deja el catálogo a la vista para elegir los productos de la lista siguiente.
 - **Historial** por meses, con el detalle de cada compra.
 - **Gráfico del mes**: una barra por compra, con fecha e importe, y flechas para navegar entre meses.
+- **Detalle de compra**: al tocar una barra se abre la compra en modo lectura, con opción de eliminarla.
 - **Exportar e importar** todos los datos en un JSON.
 
 ## Lo que no hace (a propósito)
