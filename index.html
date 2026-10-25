@@ -186,7 +186,11 @@
   .best{font-size:10px;background:var(--green-soft);color:var(--green);border-radius:5px;padding:2px 5px;font-weight:700;margin-left:6px;vertical-align:1px}
 
   .chart-box{margin-bottom:16px}
-  .chart-head{display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;font-weight:650}
+  .chart-head{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13.5px;font-weight:650}
+  .chart-nav{display:flex;align-items:center;gap:6px;min-width:0}
+  .chart-month{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chart-arrow{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:9px;color:var(--green);font-size:17px;line-height:1;cursor:pointer}
+  .chart-arrow:disabled{opacity:.3;cursor:default}
   .chart-head b{font-variant-numeric:tabular-nums}
   .chart-sub{font-size:12px;color:var(--muted);margin:2px 0 10px}
   .chart{width:100%;height:auto;display:block}
@@ -438,7 +442,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v16";
+  var APP_VERSION = "v17";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -908,6 +912,7 @@
 
     var filter = "all";
     var query = "";
+    var chartMonth = "";
     var addMode = null; // { product, editId }
     var productIdOpen = null;
     var lineIdOpen = null;
@@ -1728,12 +1733,20 @@
 
     /* --- historial --- */
 
+    function shiftMonth(key, delta) {
+      var parts = key.split("-");
+      var d = new Date(Number(parts[0]), Number(parts[1]) - 1 + delta, 1, 12);
+      return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+    }
+
     function renderMonthChart() {
       var box = el.monthChart;
       if (!box) return;
       box.textContent = "";
 
-      var monthKey = todayISO().slice(0, 7);
+      var currentKey = todayISO().slice(0, 7);
+      if (!chartMonth) chartMonth = currentKey;
+      var monthKey = chartMonth;
       var list = state.purchases
         .filter(function (p) { return p.date.slice(0, 7) === monthKey; })
         .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
@@ -1743,20 +1756,51 @@
 
       var head = document.createElement("div");
       head.className = "chart-head";
+
+      var nav = document.createElement("div");
+      nav.className = "chart-nav";
+      var prev = document.createElement("button");
+      prev.type = "button";
+      prev.className = "chart-arrow";
+      prev.setAttribute("aria-label", "Mes anterior");
+      prev.textContent = "‹";
+      prev.addEventListener("click", function () {
+        chartMonth = shiftMonth(monthKey, -1);
+        renderMonthChart();
+      });
+
       var t = document.createElement("span");
+      t.className = "chart-month";
       var monthLabel = monthFmt.format(d0);
       t.textContent = monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1);
+
+      var next = document.createElement("button");
+      next.type = "button";
+      next.className = "chart-arrow";
+      next.setAttribute("aria-label", "Mes siguiente");
+      next.textContent = "›";
+      if (monthKey >= currentKey) next.disabled = true;
+      next.addEventListener("click", function () {
+        if (monthKey >= currentKey) return;
+        chartMonth = shiftMonth(monthKey, 1);
+        renderMonthChart();
+      });
+
+      nav.appendChild(prev);
+      nav.appendChild(t);
+      nav.appendChild(next);
+
       var v = document.createElement("b");
       v.textContent = money.format(total);
-      head.appendChild(t);
+      head.appendChild(nav);
       head.appendChild(v);
       box.appendChild(head);
 
       var sub = document.createElement("div");
       sub.className = "chart-sub";
       sub.textContent = list.length
-        ? (list.length === 1 ? "1 compra este mes" : list.length + " compras este mes")
-        : "Sin compras este mes";
+        ? (list.length === 1 ? "1 compra" : list.length + " compras")
+        : "Sin compras";
       box.appendChild(sub);
 
       if (!list.length) return;
