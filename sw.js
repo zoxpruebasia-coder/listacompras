@@ -1,4 +1,4 @@
-const CACHE = "carrito-v3";
+const CACHE = "carrito-v4";
 const ASSETS = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {

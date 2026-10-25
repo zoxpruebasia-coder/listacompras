@@ -10,6 +10,7 @@ Aplicación web (PWA) para construir el ticket de la compra antes de pasar por c
 - **Cantidad libre**: admite «2 bolsas» o «1,5 kg»; si contiene un número, se usa para el total.
 - **Alta rápida**: buscar en el catálogo, elegir tienda, precio y cantidad. Si el producto no existe, se crea al vuelo.
 - **Añadir desde el catálogo o la ficha** con un toque, sin pasar por el buscador.
+- **Precio en otra tienda**: botón «＋ Añadir precio en otra tienda» en la línea, o «+ Añadir precio» en la ficha del producto.
 - **Ficha de producto** con la matriz de precios por tienda: añadir precio en otra tienda, ver cuál es el más barato y desde cuándo.
 - **Precio por kilo, litro o unidad**: si el envase trae 1,5 L o 500 g, se calcula el €/kg o €/L y la comparación es justa.
 - **Cerrar compra**: sella la compra con fecha, tiendas y total; vacía la lista y traslada los precios al catálogo.
