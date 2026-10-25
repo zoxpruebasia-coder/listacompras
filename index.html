@@ -844,6 +844,12 @@
   if (typeof document !== "undefined") initUI();
 
   function initUI() {
+    if (/[?&]reset=1\b/.test(location.search)) {
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      location.replace(location.pathname);
+      return;
+    }
+
     var el = {};
     ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
