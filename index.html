@@ -206,6 +206,8 @@
   .p-lines{list-style:none;margin:0;padding:4px 12px 12px;font-size:13px}
   .p-lines li{display:flex;justify-content:space-between;gap:10px;padding:4px 0;color:var(--muted)}
   .p-lines b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+  .p-foot{display:flex;justify-content:flex-end;padding:0 12px 10px}
+  .p-foot button{background:none;border:0;color:var(--red);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;padding:6px 4px}
 
   .toast{
     position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));
@@ -442,7 +444,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v17";
+  var APP_VERSION = "v18";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -1921,6 +1923,24 @@
             ul.appendChild(li);
           });
           det.appendChild(ul);
+
+          var foot = document.createElement("div");
+          foot.className = "p-foot";
+          var del = document.createElement("button");
+          del.type = "button";
+          del.textContent = "Eliminar esta compra";
+          del.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            var msg = "¿Eliminar la compra del " + dayFmt.format(d2) + " por " + money.format(p.total) + "? No se puede deshacer.";
+            if (!confirm(msg)) return;
+            state.purchases = state.purchases.filter(function (x) { return x.id !== p.id; });
+            save();
+            renderHistory();
+            render();
+            toast("Compra eliminada");
+          });
+          foot.appendChild(del);
+          det.appendChild(foot);
           el.historyList.appendChild(det);
         });
       });
