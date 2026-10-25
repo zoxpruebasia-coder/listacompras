@@ -393,7 +393,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v8";
+  var APP_VERSION = "v9";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -1328,6 +1328,28 @@
       setTimeout(function () { el.npPrice.focus(); }, 80);
     }
 
+    function syncLinesFor(productId) {
+      var best = bestPrice(productId);
+      if (!best) return null;
+      var p = product(productId);
+      var pack = p && p.pack > 0 ? p.pack : 1;
+      var changed = null;
+
+      state.current.items.forEach(function (line) {
+        if (line.productId !== productId) return;
+        var empty = !line.storeId && !(line.price > 0);
+        var curObs = line.storeId ? latestAt(productId, line.storeId) : null;
+        var curUnit = curObs ? obsUnitPrice(curObs) : (line.price > 0 ? line.price / pack : Infinity);
+        if (empty || best.unitPrice < curUnit - 0.0001) {
+          line.storeId = best.storeId;
+          line.price = best.obs.price;
+          line.unit = p ? p.unit : line.unit;
+          changed = { lineId: line.id, best: best };
+        }
+      });
+      return changed;
+    }
+
     function renderPrices() {
       var p = product(productIdOpen);
       if (!p) return;
@@ -1837,20 +1859,17 @@
       }
       upsertPrice(productIdOpen, storeId, price, pack > 0 ? pack : 1, el.npPromo.checked);
 
-      if (lineIdOpen) {
-        var line = null;
-        state.current.items.forEach(function (i) { if (i.id === lineIdOpen) line = i; });
-        if (line && !line.storeId && !(line.price > 0)) {
-          line.storeId = storeId;
-          line.price = round2(price);
-          revealLine(line.id);
-        }
-      }
+      var synced = syncLinesFor(productIdOpen);
       save();
       resetPriceForm();
       renderPrices();
       render();
-      toast((wasEdit ? "Precio actualizado en " : "Precio guardado en ") + storeName(storeId));
+      if (synced) {
+        toast("Más barato en " + storeName(synced.best.storeId) + " · " + money.format(synced.best.obs.price) + " · lista actualizada");
+        revealLine(synced.lineId);
+      } else {
+        toast((wasEdit ? "Precio actualizado en " : "Precio guardado en ") + storeName(storeId));
+      }
     });
 
     el.npCancel.addEventListener("click", function () { resetPriceForm(); });
