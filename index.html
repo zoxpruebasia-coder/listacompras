@@ -425,7 +425,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v13";
+  var APP_VERSION = "v14";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -995,7 +995,18 @@
       if (!allItems.length) {
         var empty = document.createElement("div");
         empty.className = "empty";
-        empty.innerHTML = "<strong>La lista está vacía</strong>Añade el primer producto y verás el total.";
+        empty.innerHTML = "<strong>La lista está vacía</strong>Puedes prepararla con todos los productos del catálogo o añadir uno a uno.";
+        var fill = document.createElement("button");
+        fill.type = "button";
+        fill.className = "primary block";
+        fill.style.marginTop = "12px";
+        fill.textContent = "Preparar lista con los " + state.products.length + " productos";
+        fill.addEventListener("click", function () {
+          seedNextList();
+          commit();
+          toast("Lista preparada");
+        });
+        empty.appendChild(fill);
         el.sections.appendChild(empty);
         return;
       }
@@ -2064,7 +2075,10 @@
 
     /* --- arranque --- */
     state = load();
-    if (!state.current.items.length && !state.purchases.length) save();
+    if (!state.current.items.length && state.products.length) {
+      seedNextList();
+    }
+    save();
     render();
 
     if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
