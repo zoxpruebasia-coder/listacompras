@@ -13,7 +13,7 @@ Aplicación web (PWA) para construir el ticket de la compra antes de pasar por c
 - **Precio en otra tienda**: botón «＋ Añadir precio en otra tienda» en la línea, o «+ Añadir precio» en la ficha del producto.
 - **Ficha de producto** con la matriz de precios por tienda: añadir precio en otra tienda, ver cuál es el más barato y desde cuándo.
 - **Precio por kilo, litro o unidad**: si el envase trae 1,5 L o 500 g, se calcula el €/kg o €/L y la comparación es justa.
-- **Cerrar compra**: sella la compra con fecha, tiendas y total; vacía la lista y traslada los precios al catálogo.
+- **Cerrar compra**: sella la compra con fecha, tiendas y total; traslada los precios al catálogo y prepara la lista siguiente con todos los productos.
 - **Historial** por meses, con el detalle de cada compra.
 - **Exportar e importar** todos los datos en un JSON.
 

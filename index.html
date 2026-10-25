@@ -425,7 +425,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v11";
+  var APP_VERSION = "v13";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -808,6 +808,26 @@
     commit();
   }
 
+  function seedNextList() {
+    state.current = {
+      id: uid("cur"),
+      openedAt: Date.now(),
+      items: state.products.map(function (p) {
+        var best = bestPrice(p.id);
+        return {
+          id: uid("i"),
+          productId: p.id,
+          name: p.name,
+          unit: p.unit,
+          qty: 1,
+          qtyText: "",
+          price: best ? best.obs.price : 0,
+          storeId: best ? best.storeId : ""
+        };
+      })
+    };
+  }
+
   function closePurchase() {
     var items = state.current.items.filter(function (i) { return i.price > 0 && i.qty > 0; });
     if (!items.length) return null;
@@ -842,7 +862,7 @@
     };
 
     state.purchases.push(purchase);
-    state.current = { id: uid("cur"), openedAt: Date.now(), items: [] };
+    seedNextList();
     commit();
     return purchase;
   }
@@ -869,6 +889,8 @@
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
      "importFile","btnReset","btnForce","storeList","newStore","addStore","exportStatus","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
+
+    ui = { render: render };
 
     var filter = "all";
     var query = "";
@@ -1663,7 +1685,7 @@
       var txt = items.length + " productos · " + money.format(totalOf(items)) + "\n" + stores.join(" · ");
       if (noStore) txt += "\n\n" + noStore + " producto(s) sin tienda: se guardarán en el historial, pero no generarán precios.";
       if (unpriced) txt += "\n\n" + unpriced + " producto(s) sin precio no se guardarán.";
-      txt += "\n\nAl cerrar, la lista se vacía y los precios pasan al catálogo.";
+      txt += "\n\nAl cerrar, la compra pasa al historial y la lista se renueva con todos los productos y sus precios.";
       el.closeSummary.textContent = txt;
       el.dlgClose.showModal();
     }
@@ -2037,7 +2059,7 @@
     el.btnCloseOk.addEventListener("click", function () {
       var p = closePurchase();
       el.dlgClose.close();
-      if (p) { toast("Compra cerrada · " + money.format(p.total)); }
+      if (p) { toast("Compra cerrada · " + money.format(p.total) + " · lista nueva con " + state.current.items.length + " productos"); }
     });
 
     /* --- arranque --- */
