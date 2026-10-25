@@ -77,6 +77,10 @@
   }
   .hintcard button{position:absolute;top:6px;right:8px;background:none;border:0;font-size:18px;color:#a08a4a;cursor:pointer}
 
+  .closebar{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;background:#fff;border:1px solid var(--green);color:var(--green);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;font-weight:650;margin-bottom:14px;cursor:pointer;box-shadow:var(--shadow)}
+  .closebar:active{background:var(--green-soft)}
+  .closebar b{font-variant-numeric:tabular-nums}
+  .closebar.hidden{display:none}
   .store-block{margin-bottom:16px}
   .store-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 8px}
   .store-name{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
@@ -235,7 +239,13 @@
   </div>
 </header>
 
-<main id="sections"></main>
+<main>
+  <button class="closebar hidden" id="btnClose" type="button">
+    <span>Cerrar compra</span>
+    <b id="closeBarTotal">0,00 €</b>
+  </button>
+  <div id="sections"></div>
+</main>
 <button class="fab" id="btnAdd" type="button">+ Añadir</button>
 
 <div class="toast" id="toast" hidden><span id="toastMsg"></span></div>
@@ -391,6 +401,7 @@
       <input class="input" id="newStore" placeholder="Nueva tienda" maxlength="24">
       <button type="button" class="primary" id="addStore" style="padding:0 16px">Añadir</button>
     </div>
+    <p class="hint" id="exportStatus"></p>
     <p class="about" id="appVersion"></p>
     <p class="about" id="aboutStats"></p>
     <p class="about">Los datos viven solo en este navegador. Exporta de vez en cuando: si borras los datos del sitio, se pierden.</p>
@@ -414,7 +425,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v10";
+  var APP_VERSION = "v11";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -854,9 +865,9 @@
     ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
-     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","pLineBox","pLineToggle","pLineSummary","pLineChev","pLineFields","pLineStore","pLinePrice","pLineQty","pLineSave","pLineRemove","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
+     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","pLineBox","pLineToggle","pLineSummary","pLineChev","pLineFields","pLineStore","pLinePrice","pLineQty","pLineSave","pLineRemove","btnClose","closeBarTotal","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
-     "importFile","btnReset","btnForce","storeList","newStore","addStore","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
+     "importFile","btnReset","btnForce","storeList","newStore","addStore","exportStatus","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     var filter = "all";
@@ -900,6 +911,8 @@
       var priced = items.filter(function (i) { return i.price > 0; }).length;
 
       el.total.textContent = money.format(total);
+      el.btnClose.classList.toggle("hidden", !(total > 0));
+      el.closeBarTotal.textContent = money.format(total);
       if (query) {
         var qn = norm(query);
         var vis = items.filter(function (i) { return norm(i.name).indexOf(qn) > -1; }).length;
@@ -1268,6 +1281,26 @@
       var p = addMode ? addMode.product : null;
       if (!p) return;
 
+      var storeId = el.fStore.value;
+      var existing = null;
+      state.current.items.forEach(function (i) {
+        if (i.productId === p.id && (i.storeId || "") === (storeId || "")) existing = i;
+      });
+
+      if (existing) {
+        updateLine(existing.id, {
+          qty: existing.qty + qty,
+          qtyText: "",
+          price: isFinite(price) && price > 0 ? price : existing.price,
+          storeId: storeId
+        });
+        el.dlgAdd.close();
+        render();
+        revealLine(existing.id);
+        toast(p.name + " actualizado");
+        return;
+      }
+
       var added = addLine({
         productId: p.id,
         name: p.name,
@@ -1275,7 +1308,7 @@
         qty: qty,
         qtyText: qtyText,
         price: isFinite(price) ? price : 0,
-        storeId: el.fStore.value
+        storeId: storeId
       });
       el.dlgAdd.close();
 
@@ -1708,6 +1741,7 @@
       a.click();
       a.remove();
       setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+      el.exportStatus.textContent = "Copia descargada. Guárdala fuera del móvil.";
       toast("Datos exportados");
     }
 
@@ -1725,6 +1759,7 @@
           save();
           filter = "all";
           render();
+          el.exportStatus.textContent = "Datos importados correctamente.";
           el.dlgSettings.close();
           toast("Datos importados");
         } catch (e) {
@@ -1747,6 +1782,7 @@
 
     /* --- eventos --- */
 
+    el.btnClose.addEventListener("click", openClose);
     el.btnAdd.addEventListener("click", openAdd);
     el.btnHistory.addEventListener("click", function () { renderHistory(); el.dlgHistory.showModal(); });
     el.btnCatalog.addEventListener("click", function () { el.catSearch.value = ""; renderCatalog(""); el.dlgCatalog.showModal(); });
