@@ -32,7 +32,7 @@ Personas que hacen la compra semanal en varias cadenas (Mercadona, Condis, Lidl,
 - Etiqueta «MEJOR» en el precio más bajo.
 
 ### 3. Compra e historial
-- Cerrar compra: guarda fecha, tiendas, líneas y total; traslada los precios al catálogo y prepara la lista siguiente con todos los productos y sus precios.
+- Cerrar compra: guarda fecha, tiendas, líneas y total; traslada los precios al catálogo y deja la lista vacía mostrando el catálogo para elegir los productos de la siguiente compra.
 - Historial agrupado por mes, con detalle de cada compra.
 
 ### 4. Tiendas

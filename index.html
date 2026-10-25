@@ -81,6 +81,9 @@
   .closebar:active{background:var(--green-soft)}
   .closebar b{font-variant-numeric:tabular-nums}
   .closebar.hidden{display:none}
+  .picker-head{margin-bottom:12px}
+  .picker-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+  .picker-sub{font-size:12.5px;color:var(--muted);margin-top:2px}
   .store-block{margin-bottom:16px}
   .store-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 8px}
   .store-name{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
@@ -425,7 +428,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v14";
+  var APP_VERSION = "v15";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -862,7 +865,8 @@
     };
 
     state.purchases.push(purchase);
-    seedNextList();
+    state.current = { id: uid("cur"), openedAt: Date.now(), items: [] };
+    state.picking = true;
     commit();
     return purchase;
   }
@@ -933,9 +937,11 @@
       var priced = items.filter(function (i) { return i.price > 0; }).length;
 
       el.total.textContent = money.format(total);
-      el.btnClose.classList.toggle("hidden", !(total > 0));
+      el.btnClose.classList.toggle("hidden", state.picking || !(total > 0));
       el.closeBarTotal.textContent = money.format(total);
-      if (query) {
+      if (state.picking) {
+        el.count.textContent = items.length + " en la lista nueva";
+      } else if (query) {
         var qn = norm(query);
         var vis = items.filter(function (i) { return norm(i.name).indexOf(qn) > -1; }).length;
         el.count.textContent = vis + " de " + items.length + " productos";
@@ -952,6 +958,7 @@
         el.lastRef.textContent = "Sin compras anteriores";
       }
 
+      el.storeFilters.classList.toggle("hidden", !!state.picking);
       renderFilters(items);
       renderSections(items);
     }
@@ -983,8 +990,100 @@
       });
     }
 
+    function addFromPicker(p) {
+      var best = bestPrice(p.id);
+      var storeId = best ? best.storeId : "";
+      var price = best ? best.obs.price : 0;
+      var existing = null;
+      state.current.items.forEach(function (i) {
+        if (i.productId === p.id && (i.storeId || "") === storeId) existing = i;
+      });
+      if (existing) {
+        updateLine(existing.id, { qty: existing.qty + 1 });
+      } else {
+        addLine({ productId: p.id, name: p.name, unit: p.unit, qty: 1, price: price, storeId: storeId });
+      }
+      render();
+      toast(p.name + " añadido");
+    }
+
+    function renderPicker() {
+      var q = query ? norm(query) : "";
+      var list = state.products.filter(function (p) { return !q || norm(p.name).indexOf(q) > -1; });
+      var count = state.current.items.length;
+
+      var head = document.createElement("div");
+      head.className = "picker-head";
+      var title = document.createElement("div");
+      title.className = "picker-title";
+      title.textContent = "Nueva lista";
+      var sub = document.createElement("div");
+      sub.className = "picker-sub";
+      sub.textContent = count ? (count === 1 ? "1 producto añadido" : count + " productos añadidos") : "Toca + para añadir productos";
+      head.appendChild(title);
+      head.appendChild(sub);
+
+      if (count) {
+        var go = document.createElement("button");
+        go.type = "button";
+        go.className = "primary block";
+        go.style.marginTop = "10px";
+        go.textContent = "Ver mi lista (" + count + ")";
+        go.addEventListener("click", function () {
+          state.picking = false;
+          save();
+          render();
+        });
+        head.appendChild(go);
+      }
+      el.sections.appendChild(head);
+
+      var ul = document.createElement("ul");
+      ul.className = "lines";
+      list.forEach(function (p) {
+        var best = bestPrice(p.id);
+        var li = document.createElement("li");
+        li.className = "line";
+
+        var main = document.createElement("button");
+        main.type = "button";
+        main.className = "line-main";
+        main.dataset.pid = p.id;
+        var n = document.createElement("span");
+        n.className = "line-name";
+        n.textContent = p.name;
+        var sub2 = document.createElement("span");
+        sub2.className = "line-sub";
+        sub2.textContent = best ? money.format(best.obs.price) + " · " + storeName(best.storeId) : "sin precio";
+        main.appendChild(n);
+        main.appendChild(sub2);
+        main.addEventListener("click", function () { openProduct(p.id); });
+
+        var add = document.createElement("button");
+        add.type = "button";
+        add.className = "result-add";
+        add.textContent = "+";
+        add.setAttribute("aria-label", "Añadir " + p.name);
+        add.addEventListener("click", function () { addFromPicker(p); });
+
+        li.appendChild(main);
+        li.appendChild(add);
+        ul.appendChild(li);
+      });
+      el.sections.appendChild(ul);
+
+      if (!list.length) {
+        var none = document.createElement("div");
+        none.className = "empty";
+        none.innerHTML = "<strong>Sin resultados</strong>Prueba con otro nombre.";
+        el.sections.appendChild(none);
+      }
+    }
+
     function renderSections(allItems) {
       el.sections.textContent = "";
+
+      if (state.picking) { renderPicker(); return; }
 
       var items = allItems;
       if (query) {
@@ -1000,11 +1099,10 @@
         fill.type = "button";
         fill.className = "primary block";
         fill.style.marginTop = "12px";
-        fill.textContent = "Preparar lista con los " + state.products.length + " productos";
+        fill.textContent = "Elegir productos del catálogo";
         fill.addEventListener("click", function () {
-          seedNextList();
+          state.picking = true;
           commit();
-          toast("Lista preparada");
         });
         empty.appendChild(fill);
         el.sections.appendChild(empty);
@@ -2075,8 +2173,8 @@
 
     /* --- arranque --- */
     state = load();
-    if (!state.current.items.length && state.products.length) {
-      seedNextList();
+    if (!state.current.items.length && state.products.length && !state.picking) {
+      state.picking = true;
     }
     save();
     render();

@@ -81,7 +81,7 @@ Versión de referencia: v10 (visible en Ajustes).
 ### 10. Cerrar compra
 1. Pulsar «Cerrar compra» (desde la lista, al final) y confirmar.
 
-**Esperado:** aviso «Compra cerrada · 2,20 €»; la lista se renueva con los 127 productos y sus precios; «Historial» muestra la compra con fecha, tiendas y 2,20 €.
+**Esperado:** aviso «Compra cerrada · 2,20 €»; la lista queda vacía y aparece el catálogo con todos los productos y sus precios para elegir los de la compra nueva; «Historial» muestra la compra con fecha, tiendas y 2,20 €.
 
 ### 11. Persistencia
 1. Recargar la página (sin reset).
