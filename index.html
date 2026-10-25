@@ -166,6 +166,7 @@
   .price-unit{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}
   .price-del{background:none;border:0;color:#9aa79f;font-size:17px;cursor:pointer;padding:4px}
   .price-edit{background:none;border:0;color:var(--green);font-size:15px;cursor:pointer;padding:4px}
+  .line-box{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
   .np-actions{display:flex;gap:10px;margin-top:2px}
   .np-actions button{flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);background:#fff;font-weight:650;cursor:pointer}
   .store-input{flex:1;height:38px;padding:0 10px;font-size:15px}
@@ -299,6 +300,19 @@
     <h3 style="margin-top:18px">Precios guardados</h3>
     <ul class="price-list" id="pPrices"></ul>
 
+    <div id="pLineBox" class="line-box hidden">
+      <h3>En esta compra</h3>
+      <div class="row">
+        <label class="field"><span>Tienda</span><select id="pLineStore"></select></label>
+        <label class="field"><span>Precio €</span><input class="input" id="pLinePrice" inputmode="decimal" placeholder="0,00"></label>
+      </div>
+      <div class="row">
+        <label class="field"><span>Cantidad</span><input class="input" id="pLineQty" placeholder="1"></label>
+        <button type="button" id="pLineSave" class="primary" style="align-self:flex-end;height:46px;padding:0 18px">Guardar</button>
+      </div>
+      <button type="button" id="pLineRemove" class="danger block" style="margin-top:6px">Quitar de la lista</button>
+    </div>
+
     <button type="button" id="pAdd" class="secondary block" style="margin-top:12px">Añadir a la lista</button>
 
     <details class="prod-data">
@@ -357,6 +371,7 @@
       <button type="button" id="btnExport">Exportar datos (JSON)</button>
       <label class="file">Importar datos<input type="file" id="importFile" accept="application/json,.json"></label>
       <button type="button" id="btnReset" class="danger">Borrar todos los datos</button>
+      <button type="button" id="btnForce">Forzar actualización</button>
     </div>
 
     <h3>Tiendas</h3>
@@ -365,6 +380,7 @@
       <input class="input" id="newStore" placeholder="Nueva tienda" maxlength="24">
       <button type="button" class="primary" id="addStore" style="padding:0 16px">Añadir</button>
     </div>
+    <p class="about" id="appVersion"></p>
     <p class="about" id="aboutStats"></p>
     <p class="about">Los datos viven solo en este navegador. Exporta de vez en cuando: si borras los datos del sitio, se pierden.</p>
   </div>
@@ -387,6 +403,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
+  var APP_VERSION = "v6";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
@@ -820,15 +837,16 @@
     ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
-     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
+     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","pLineBox","pLineStore","pLinePrice","pLineQty","pLineSave","pLineRemove","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
-     "importFile","btnReset","storeList","newStore","addStore","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
+     "importFile","btnReset","btnForce","storeList","newStore","addStore","appVersion","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
 
     var filter = "all";
     var query = "";
     var addMode = null; // { product, editId }
     var productIdOpen = null;
+    var lineIdOpen = null;
     var editingObsId = null;
     var toastTimer = null;
 
@@ -1186,7 +1204,8 @@
       state.current.items.forEach(function (i) { if (i.id === itemId) item = i; });
       if (!item) return;
       var p = item.productId ? product(item.productId) : null;
-      showLineForm(p, item.name, item);
+      if (p) { openProduct(p.id, item.id); return; }
+      showLineForm(null, item.name, item);
     }
 
     function submitLine(e) {
@@ -1222,10 +1241,11 @@
 
     /* --- ficha de producto --- */
 
-    function openProduct(id) {
+    function openProduct(id, lineId) {
       var p = product(id);
       if (!p) return;
       productIdOpen = id;
+      lineIdOpen = lineId || null;
       el.pTitle.textContent = p.name;
       el.pName.value = p.name;
       el.pUnit.value = p.unit;
@@ -1233,7 +1253,21 @@
       el.pPackHint.textContent = "Si el envase trae 1,5 L o 500 g, ponlo aquí para calcular el precio por unidad. Déjalo vacío si se vende suelto.";
       resetPriceForm();
       renderPrices();
+      renderLineBox();
       if (!el.dlgProduct.open) el.dlgProduct.showModal();
+    }
+
+    function renderLineBox() {
+      var line = null;
+      state.current.items.forEach(function (i) { if (i.id === lineIdOpen) line = i; });
+      var inList = !!line;
+      el.pLineBox.classList.toggle("hidden", !inList);
+      el.pAdd.classList.toggle("hidden", inList);
+      if (!inList) return;
+
+      el.pLineStore.innerHTML = storeOptions(line.storeId, true);
+      el.pLinePrice.value = line.price > 0 ? line.price.toFixed(2).replace(".", ",") : "";
+      el.pLineQty.value = line.qtyText || qtyFmt.format(line.qty);
     }
 
     function availableStores(pid) {
@@ -1796,6 +1830,28 @@
 
     el.pSave.addEventListener("click", saveProduct);
     el.pDelete.addEventListener("click", deleteProduct);
+    el.pLineSave.addEventListener("click", function () {
+      if (!lineIdOpen) return;
+      var price = num(el.pLinePrice.value);
+      var qtyText = el.pLineQty.value.trim().slice(0, 40);
+      var qty = num(qtyText);
+      if (!(qty > 0)) qty = 1;
+      updateLine(lineIdOpen, {
+        storeId: el.pLineStore.value,
+        price: isFinite(price) ? price : 0,
+        qty: qty,
+        qtyText: qtyText
+      });
+      toast("Compra actualizada");
+    });
+
+    el.pLineRemove.addEventListener("click", function () {
+      if (!lineIdOpen) return;
+      removeLine(lineIdOpen);
+      el.dlgProduct.close();
+      toast("Quitado de la lista");
+    });
+
     el.pAdd.addEventListener("click", function () {
       var p = product(productIdOpen);
       el.dlgProduct.close();
@@ -1815,6 +1871,23 @@
       var b = e.target.closest(".result-main");
       if (!b) return;
       openProduct(b.dataset.pid);
+    });
+
+    el.appVersion.textContent = "Versión " + APP_VERSION + " · si no ves los últimos cambios, pulsa Forzar actualización";
+
+    el.btnForce.addEventListener("click", async function () {
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          var regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(function (r) { return r.unregister(); }));
+        }
+        if (window.caches) {
+          var keys = await caches.keys();
+          await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+        }
+      } catch (e) {}
+      toast("Actualizando…");
+      location.reload();
     });
 
     el.btnExport.addEventListener("click", exportData);
