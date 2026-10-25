@@ -165,6 +165,9 @@
   .price-val{font-variant-numeric:tabular-nums;font-weight:650}
   .price-unit{color:var(--muted);font-size:12px;font-variant-numeric:tabular-nums;min-width:70px;text-align:right}
   .price-del{background:none;border:0;color:#9aa79f;font-size:17px;cursor:pointer;padding:4px}
+  .price-edit{background:none;border:0;color:var(--green);font-size:15px;cursor:pointer;padding:4px}
+  .np-actions{display:flex;gap:10px;margin-top:2px}
+  .np-actions button{flex:1;padding:12px;border-radius:11px;border:1px solid var(--line);background:#fff;font-weight:650;cursor:pointer}
   .best{font-size:10px;background:var(--green-soft);color:var(--green);border-radius:5px;padding:2px 5px;font-weight:700;margin-left:6px;vertical-align:1px}
 
   .month{margin:16px 0 6px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700;display:flex;justify-content:space-between}
@@ -270,13 +273,8 @@
       <h2 id="pTitle">Producto</h2>
       <button class="x" type="button" data-close="dlgProduct" aria-label="Cerrar">×</button>
     </div>
-    <div class="prices-head">
-      <h3>Precios por tienda</h3>
-      <button type="button" id="npToggle" class="pill">+ Añadir precio</button>
-    </div>
-    <ul class="price-list" id="pPrices"></ul>
-
-    <form id="npForm" class="hidden" autocomplete="off">
+    <h3 id="npTitle">Añadir precio</h3>
+    <form id="npForm" autocomplete="off">
       <div class="row">
         <label class="field"><span>Tienda</span><select id="npStore"></select></label>
         <label class="field"><span>Precio €</span><input class="input" id="npPrice" inputmode="decimal" placeholder="0,00"></label>
@@ -290,10 +288,17 @@
           </label>
         </label>
       </div>
-      <button class="primary" type="submit" style="width:100%;padding:13px;border-radius:12px;border:1px solid var(--green);font-weight:650">Guardar precio</button>
+      <div class="np-actions">
+        <button type="button" id="npCancel" class="secondary hidden">Cancelar</button>
+        <button class="primary" type="submit" id="npSave">Añadir precio</button>
+      </div>
     </form>
+    <p class="hint hidden" id="npEmpty">Todas las tiendas ya tienen precio. Edita uno de la lista de abajo.</p>
 
-    <button type="button" id="pAdd" class="primary block" style="margin-top:12px">Añadir a la lista</button>
+    <h3 style="margin-top:18px">Precios guardados</h3>
+    <ul class="price-list" id="pPrices"></ul>
+
+    <button type="button" id="pAdd" class="secondary block" style="margin-top:12px">Añadir a la lista</button>
 
     <details class="prod-data">
       <summary>Datos del producto</summary>
@@ -795,7 +800,7 @@
     ["total","count","lastRef","storeFilters","sections","btnAdd","btnHistory","btnCatalog","btnSettings",
      "dlgAdd","addTitle","addSearch","searchResults","createBtn","addSearchPanel","addForm","fName","fStore",
      "fPrice","fQty","fQtyLabel","fHint","fDelete","fSubmit","fSheet","listSearch","listSearchClear","pAdd",
-     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npToggle","npForm","npStore","npPrice","npPack","npPromo",
+     "dlgProduct","pTitle","pName","pUnit","pPack","pPackHint","pPrices","npTitle","npEmpty","npSave","npCancel","npForm","npStore","npPrice","npPack","npPromo",
      "pDelete","pSave","dlgCatalog","catSearch","catList","dlgHistory","historyList","dlgSettings","btnExport",
      "importFile","btnReset","aboutStats","dlgClose","closeSummary","btnCloseOk","toast","toastMsg"
     ].forEach(function (id) { el[id] = document.getElementById(id); });
@@ -804,6 +809,7 @@
     var query = "";
     var addMode = null; // { product, editId }
     var productIdOpen = null;
+    var editingObsId = null;
     var toastTimer = null;
 
     /* --- helpers de render --- */
@@ -1196,7 +1202,7 @@
 
     /* --- ficha de producto --- */
 
-    function openProduct(id, openPrices) {
+    function openProduct(id) {
       var p = product(id);
       if (!p) return;
       productIdOpen = id;
@@ -1205,26 +1211,55 @@
       el.pUnit.value = p.unit;
       el.pPack.value = p.pack && p.pack !== 1 ? String(p.pack).replace(".", ",") : "";
       el.pPackHint.textContent = "Si el envase trae 1,5 L o 500 g, ponlo aquí para calcular el precio por unidad. Déjalo vacío si se vende suelto.";
-      openPriceForm(!!openPrices);
+      resetPriceForm();
       renderPrices();
       if (!el.dlgProduct.open) el.dlgProduct.showModal();
     }
 
-    function defaultStoreFor(pid) {
-      for (var i = 0; i < STORES.length; i++) {
-        if (!latestAt(pid, STORES[i].id)) return STORES[i].id;
-      }
-      return STORES[0].id;
+    function availableStores(pid) {
+      return STORES.filter(function (s) { return !latestAt(pid, s.id); });
     }
 
-    function openPriceForm(show) {
-      el.npForm.classList.toggle("hidden", !show);
-      el.npToggle.textContent = show ? "Cerrar" : "+ Añadir precio";
-      if (!show) return;
-      el.npStore.innerHTML = storeOptions(defaultStoreFor(productIdOpen), false);
+    function resetPriceForm() {
+      editingObsId = null;
+      var avail = availableStores(productIdOpen);
+      var none = avail.length === 0;
+
+      el.npForm.classList.toggle("hidden", none);
+      el.npEmpty.classList.toggle("hidden", !none);
+      el.npTitle.textContent = "Añadir precio";
+      el.npSave.textContent = "Añadir precio";
+      el.npCancel.classList.add("hidden");
+
+      if (none) return;
+
+      el.npStore.innerHTML = avail.map(function (s) {
+        return '<option value="' + s.id + '">' + s.name + "</option>";
+      }).join("");
       el.npPrice.value = "";
       el.npPack.value = el.pPack.value;
       el.npPromo.checked = false;
+      setTimeout(function () { el.npPrice.focus(); }, 80);
+    }
+
+    function startEditPrice(obsId) {
+      var obs = null;
+      state.prices.forEach(function (o) { if (o.id === obsId) obs = o; });
+      if (!obs) return;
+      editingObsId = obs.id;
+
+      el.npForm.classList.remove("hidden");
+      el.npEmpty.classList.add("hidden");
+      el.npTitle.textContent = "Editar precio";
+      el.npSave.textContent = "Guardar cambios";
+      el.npCancel.classList.remove("hidden");
+
+      el.npStore.innerHTML = '<option value="' + obs.storeId + '">' + storeName(obs.storeId) + "</option>";
+      el.npPrice.value = obs.price.toFixed(2).replace(".", ",");
+      el.npPack.value = obs.pack > 1 ? String(obs.pack).replace(".", ",") : "";
+      el.npPromo.checked = !!obs.promo;
+
+      if (el.npForm.scrollIntoView) el.npForm.scrollIntoView({ block: "nearest", behavior: "smooth" });
       setTimeout(function () { el.npPrice.focus(); }, 80);
     }
 
@@ -1243,7 +1278,7 @@
         var li = document.createElement("li");
         li.className = "price-row";
         li.style.color = "var(--muted)";
-        li.textContent = "Todavía no hay precios. Usa «+ Añadir precio» para guardar el primero.";
+        li.textContent = "Todavía no hay precios guardados.";
         el.pPrices.appendChild(li);
         return;
       }
@@ -1274,16 +1309,24 @@
         unit.className = "price-unit";
         unit.textContent = r.obs.pack > 1 ? money.format(obsUnitPrice(r.obs)) + "/" + unitLabel(p.unit) : "";
 
+        var edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "price-edit";
+        edit.dataset.edit = r.obs.id;
+        edit.textContent = "✎";
+        edit.setAttribute("aria-label", "Editar precio de " + r.store.name);
+
         var del = document.createElement("button");
         del.type = "button";
         del.className = "price-del";
-        del.dataset.obs = r.obs.id;
+        del.dataset.del = r.obs.id;
         del.textContent = "×";
         del.setAttribute("aria-label", "Eliminar precio de " + r.store.name);
 
         li.appendChild(st);
         li.appendChild(val);
         li.appendChild(unit);
+        li.appendChild(edit);
         li.appendChild(del);
         el.pPrices.appendChild(li);
       });
@@ -1593,7 +1636,7 @@
       if (!addMode || !addMode.product) return;
       var id = addMode.product.id;
       el.dlgAdd.close();
-      openProduct(id, true);
+      openProduct(id);
     });
 
     el.sections.addEventListener("click", function (e) {
@@ -1611,10 +1654,13 @@
     });
 
     el.pPrices.addEventListener("click", function (e) {
-      var b = e.target.closest("[data-obs]");
-      if (!b) return;
-      state.prices = state.prices.filter(function (o) { return o.id !== b.dataset.obs; });
+      var edit = e.target.closest("[data-edit]");
+      if (edit) { startEditPrice(edit.dataset.edit); return; }
+      var del = e.target.closest("[data-del]");
+      if (!del) return;
+      state.prices = state.prices.filter(function (o) { return o.id !== del.dataset.del; });
       save();
+      resetPriceForm();
       renderPrices();
       render();
     });
@@ -1623,19 +1669,22 @@
       e.preventDefault();
       var price = num(el.npPrice.value);
       var pack = num(el.npPack.value);
+      var storeId = el.npStore.value;
+      var wasEdit = !!editingObsId;
       if (!(price > 0)) { el.npPrice.focus(); return; }
-      upsertPrice(productIdOpen, el.npStore.value, price, pack > 0 ? pack : 1, el.npPromo.checked);
+
+      if (wasEdit) {
+        state.prices = state.prices.filter(function (o) { return o.id !== editingObsId; });
+      }
+      upsertPrice(productIdOpen, storeId, price, pack > 0 ? pack : 1, el.npPromo.checked);
       save();
-      openPriceForm(false);
-      el.npPrice.value = "";
+      resetPriceForm();
       renderPrices();
       render();
-      toast("Precio guardado en " + storeName(el.npStore.value));
+      toast((wasEdit ? "Precio actualizado en " : "Precio guardado en ") + storeName(storeId));
     });
 
-    el.npToggle.addEventListener("click", function () {
-      openPriceForm(el.npForm.classList.contains("hidden"));
-    });
+    el.npCancel.addEventListener("click", function () { resetPriceForm(); });
 
     el.pSave.addEventListener("click", saveProduct);
     el.pDelete.addEventListener("click", deleteProduct);
