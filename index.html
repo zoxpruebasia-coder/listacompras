@@ -278,7 +278,7 @@
     <h3 id="npTitle">Añadir precio</h3>
     <form id="npForm" autocomplete="off">
       <div class="row">
-        <label class="field"><span>Tienda</span><select id="npStore"></select></label>
+        <label class="field"><span>Tienda sin precio</span><select id="npStore"></select></label>
         <label class="field"><span>Precio €</span><input class="input" id="npPrice" inputmode="decimal" placeholder="0,00"></label>
       </div>
       <div class="row">
@@ -303,7 +303,7 @@
     <div id="pLineBox" class="line-box hidden">
       <h3>En esta compra</h3>
       <div class="row">
-        <label class="field"><span>Tienda</span><select id="pLineStore"></select></label>
+        <label class="field"><span>Tienda de esta compra</span><select id="pLineStore"></select></label>
         <label class="field"><span>Precio €</span><input class="input" id="pLinePrice" inputmode="decimal" placeholder="0,00"></label>
       </div>
       <div class="row">
@@ -403,7 +403,7 @@
   "use strict";
 
   var KEY = "carrito.v1";
-  var APP_VERSION = "v6";
+  var APP_VERSION = "v7";
   var money = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" });
   var qtyFmt = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 3 });
   var dayFmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short" });
